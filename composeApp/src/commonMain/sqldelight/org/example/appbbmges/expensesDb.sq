@@ -27,6 +27,87 @@ DELETE FROM RoleEntity WHERE id = ?;
 roleCount:
 SELECT COUNT(*) FROM RoleEntity;
 
+-- Relación que define en qué franquicias (unidades) se puede usar cada rol.
+CREATE TABLE RoleFranchiseEntity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role_id INTEGER NOT NULL REFERENCES RoleEntity(id) ON DELETE CASCADE,
+    franchise_id INTEGER NOT NULL REFERENCES FranchiseEntity(id) ON DELETE CASCADE,
+    UNIQUE(role_id, franchise_id)
+);
+
+-- Asignar un rol a una franquicia
+roleFranchiseAssign:
+INSERT INTO RoleFranchiseEntity (role_id, franchise_id)
+VALUES (?, ?);
+
+-- Eliminar la asignación de un rol en una franquicia
+roleFranchiseDelete:
+DELETE FROM RoleFranchiseEntity
+WHERE role_id = ? AND franchise_id = ?;
+
+-- Obtener todas las franquicias en las que se puede usar un rol
+franchisesByRole:
+SELECT f.* FROM FranchiseEntity f
+JOIN RoleFranchiseEntity rf ON rf.franchise_id = f.id
+WHERE rf.role_id = ?;
+
+-- Obtener los roles permitidos para una franquicia específica
+rolesByFranchise:
+SELECT r.* FROM RoleEntity r
+JOIN RoleFranchiseEntity rf ON rf.role_id = r.id
+WHERE rf.franchise_id = ?;
+
+-- Obtener roles asignables según la franquicia del usuario
+assignableRolesByUser:
+SELECT DISTINCT r.*
+FROM RoleEntity r
+JOIN RoleFranchiseEntity rf ON r.id = rf.role_id
+JOIN UserEntity u ON u.franchise_id = rf.franchise_id
+WHERE u.id = ?;
+
+-- Obtener roles asignables por franquicia directa
+assignableRolesByFranchise:
+SELECT DISTINCT r.*
+FROM RoleEntity r
+JOIN RoleFranchiseEntity rf ON r.id = rf.role_id
+WHERE rf.franchise_id = ?;
+
+-- Verificar si un rol está disponible en una franquicia
+isRoleAvailableInFranchise:
+SELECT EXISTS(
+    SELECT 1 FROM RoleFranchiseEntity
+    WHERE role_id = ? AND franchise_id = ?
+);
+
+-- Obtener roles que NO están asignados a ninguna franquicia
+rolesWithoutFranchises:
+SELECT r.* FROM RoleEntity r
+WHERE NOT EXISTS (
+    SELECT 1 FROM RoleFranchiseEntity rf
+    WHERE rf.role_id = r.id
+);
+
+-- Contar cuántas franquicias tienen asignado un rol
+countFranchisesByRole:
+SELECT COUNT(*) FROM RoleFranchiseEntity WHERE role_id = ?;
+
+-- Contar cuántos roles están asignados a una franquicia
+countRolesByFranchise:
+SELECT COUNT(*) FROM RoleFranchiseEntity WHERE franchise_id = ?;
+
+-- Obtener información detallada de asignaciones rol-franquicia
+roleAssignmentDetails:
+SELECT
+    r.id AS role_id,
+    r.name AS role_name,
+    r.description AS role_description,
+    rf.franchise_id AS franchise_id,
+    f.name AS franchise_name
+FROM RoleEntity r
+LEFT JOIN RoleFranchiseEntity rf ON r.id = rf.role_id
+LEFT JOIN FranchiseEntity f ON rf.franchise_id = f.id
+ORDER BY r.name, f.name;
+
 -- UserEntity
 CREATE TABLE UserEntity (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

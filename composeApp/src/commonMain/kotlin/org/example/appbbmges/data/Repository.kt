@@ -69,6 +69,49 @@ class Repository(private val database: AppDatabaseBaby) {
         return database.expensesDbQueries.roleCount().executeAsOne()
     }
 
+    // --- RoleFranchiseEntity ---
+
+    fun assignRoleToFranchise(roleId: Long, franchiseId: Long) {
+        database.expensesDbQueries.roleFranchiseAssign(roleId, franchiseId)
+    }
+
+    fun removeRoleFromFranchise(roleId: Long, franchiseId: Long) {
+        database.expensesDbQueries.roleFranchiseDelete(roleId, franchiseId)
+    }
+
+    fun getFranchisesByRole(roleId: Long): List<FranchiseEntity> {
+        return database.expensesDbQueries.franchisesByRole(roleId).executeAsList()
+    }
+
+    fun getRolesByFranchise(franchiseId: Long): List<RoleEntity> {
+        return database.expensesDbQueries.rolesByFranchise(franchiseId).executeAsList()
+    }
+
+    fun getAssignableRolesByUser(userId: Long): List<RoleEntity> {
+        return database.expensesDbQueries.assignableRolesByUser(userId).executeAsList()
+    }
+
+    fun getAssignableRolesByFranchise(franchiseId: Long): List<RoleEntity> {
+        return database.expensesDbQueries.assignableRolesByFranchise(franchiseId).executeAsList()
+    }
+
+    fun isRoleAvailableInFranchise(roleId: Long, franchiseId: Long): Boolean {
+        return database.expensesDbQueries.isRoleAvailableInFranchise(roleId, franchiseId)
+            .executeAsOneOrNull() != null
+    }
+
+    fun getRolesWithoutFranchises(): List<RoleEntity> {
+        return database.expensesDbQueries.rolesWithoutFranchises().executeAsList()
+    }
+
+    fun countFranchisesByRole(roleId: Long): Long {
+        return database.expensesDbQueries.countFranchisesByRole(roleId).executeAsOne()
+    }
+
+    fun countRolesByFranchise(franchiseId: Long): Long {
+        return database.expensesDbQueries.countRolesByFranchise(franchiseId).executeAsOne()
+    }
+
     fun insertUserWithStudent(
         username: String,
         password: String,
@@ -1162,7 +1205,6 @@ class Repository(private val database: AppDatabaseBaby) {
         return database.expensesDbQueries.inscriptionCount().executeAsOne()
     }
 
-    // --- Otras consultas personalizadas ---
     fun getActiveBranchesCount(): Long {
         return database.expensesDbQueries.activeBranchesCount().executeAsOne()
     }

@@ -26,7 +26,7 @@ import org.example.appbbmges.ui.settings.registationex.AddNivelScreen
 import org.example.appbbmges.ui.settings.registationex.AddProductoScreen
 import org.example.appbbmges.ui.settings.registationex.formularionewsucursales.AddSucursalScreen
 import org.example.appbbmges.ui.settings.registationex.AddCuotasScreen
-import org.example.appbbmges.ui.settings.registationex.AddNewRoleScreen
+import org.example.appbbmges.ui.settings.registationex.formulariorolscreen.AddNewRoleScreen
 import org.example.appbbmges.ui.settings.registationex.AddSalonScreen
 
 @Composable
