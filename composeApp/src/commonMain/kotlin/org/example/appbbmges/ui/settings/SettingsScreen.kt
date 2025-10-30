@@ -26,8 +26,8 @@ import org.example.appbbmges.ui.settings.registationex.AddNivelScreen
 import org.example.appbbmges.ui.settings.registationex.AddProductoScreen
 import org.example.appbbmges.ui.settings.registationex.formularionewsucursales.AddSucursalScreen
 import org.example.appbbmges.ui.settings.registationex.AddCuotasScreen
-import org.example.appbbmges.ui.settings.registationex.formulariorolscreen.AddNewRoleScreen
 import org.example.appbbmges.ui.settings.registationex.AddSalonScreen
+import org.example.appbbmges.ui.settings.registationex.formulariorolscreen.AddNewRoleScreen
 
 @Composable
 fun SettingsScreen(navController: SimpleNavController, repository: Repository) {
