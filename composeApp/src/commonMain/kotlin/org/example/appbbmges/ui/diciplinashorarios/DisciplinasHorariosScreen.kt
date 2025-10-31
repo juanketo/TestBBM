@@ -17,8 +17,8 @@ import androidx.compose.ui.unit.sp
 import org.example.appbbmges.navigation.SimpleNavController
 import kotlinx.datetime.*
 import org.example.appbbmges.data.Repository
-import org.example.appbbmges.ui.diciplinashorarios.formclass.AddNewClassMuestra
-import org.example.appbbmges.ui.diciplinashorarios.formclass.AddNewClass
+import org.example.appbbmges.ui.diciplinashorarios.formclass.AddNewTrialClassScreen
+import org.example.appbbmges.ui.diciplinashorarios.formclass.AddNewClassScreen
 
 // --- Data Definitions ---
 
@@ -63,13 +63,14 @@ sealed class DisciplinasHorariosScreenState {
     object AddNewClass : DisciplinasHorariosScreenState()
 }
 
-// --- Modified Main Composable ---
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DisciplinasHorariosScreen(navController: SimpleNavController, repository: Repository) {
     val today = Clock.System.todayIn(TimeZone.currentSystemDefault())
     var currentWeek by remember { mutableStateOf(getCurrentWeekForDate(today)) }
+
+    val currentUser = repository.getCurrentUser()
+    val franchiseId = currentUser?.franchise_id ?: 1L
 
     // Disciplinas disponibles (puedes obtenerlas del repository)
     val availableDisciplines = remember {
@@ -81,9 +82,9 @@ fun DisciplinasHorariosScreen(navController: SimpleNavController, repository: Re
         )
     }
 
-    // Clases de ejemplo (estas vendrían del repository)
-    val scheduledClasses = remember {
-        generateSampleClasses(currentWeek)
+    // Cargar clases reales desde el repository
+    val scheduledClasses = remember(currentWeek, franchiseId) {
+        mutableStateOf(loadClassesFromRepository(repository, franchiseId, currentWeek))
     }
 
     var currentScreenState by remember { mutableStateOf<DisciplinasHorariosScreenState>(DisciplinasHorariosScreenState.Calendar) }
@@ -91,10 +92,14 @@ fun DisciplinasHorariosScreen(navController: SimpleNavController, repository: Re
     // Callbacks
     val onDismissClassMuestra: () -> Unit = {
         currentScreenState = DisciplinasHorariosScreenState.Calendar
+        // Recargar clases después de agregar una nueva
+        scheduledClasses.value = loadClassesFromRepository(repository, franchiseId, currentWeek)
     }
 
     val onDismissNewClass: () -> Unit = {
         currentScreenState = DisciplinasHorariosScreenState.Calendar
+        // Recargar clases después de agregar una nueva
+        scheduledClasses.value = loadClassesFromRepository(repository, franchiseId, currentWeek)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -132,21 +137,23 @@ fun DisciplinasHorariosScreen(navController: SimpleNavController, repository: Re
                     // Lista de días con clases
                     WeeklyScheduleList(
                         weekDays = currentWeek,
-                        scheduledClasses = scheduledClasses
+                        scheduledClasses = scheduledClasses.value
                     )
                 }
             }
             is DisciplinasHorariosScreenState.AddClassMuestra -> {
-                AddNewClassMuestra(
+                AddNewTrialClassScreen(
                     onDismiss = onDismissClassMuestra,
                     repository = repository,
+                    franchiseId = franchiseId,
                     modifier = Modifier.fillMaxSize()
                 )
             }
             is DisciplinasHorariosScreenState.AddNewClass -> {
-                AddNewClass(
+                AddNewClassScreen(
                     onDismiss = onDismissNewClass,
                     repository = repository,
+                    franchiseId = franchiseId,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -455,42 +462,36 @@ fun getMonthName(monthNumber: Int): String {
     }
 }
 
-// Función para generar clases de ejemplo
-fun generateSampleClasses(weekDays: List<CalendarDay>): List<ClassSchedule> {
-    val sampleClasses = mutableListOf<ClassSchedule>()
+// Función para cargar clases desde el repository
+fun loadClassesFromRepository(
+    repository: Repository,
+    franchiseId: Long,
+    weekDays: List<CalendarDay>
+): List<ClassSchedule> {
+    val schedules = repository.getSchedulesByFranchiseId(franchiseId)
 
-    val disciplines = listOf("Danza Aérea", "Ballet", "K-Pop", "Mexidanza")
-    val teachers = listOf("Miguel Reyes Plaza", "Ana García", "Carlos López", "María Fernández")
-    val schedules = listOf("09:00-10:00", "10:30-11:30", "16:00-17:00", "17:30-18:30")
-    val classTypes = listOf("Intermedio", "Principiante", "Avanzado")
+    return schedules.mapNotNull { schedule ->
+        val classroom = repository.getClassroomById(schedule.classroom_id)
+        val teacher = repository.getTeacherById(schedule.teacher_id)
+        val discipline = repository.getDisciplineById(schedule.discipline_id)
 
-    // Generar clases para los días laborales
-    weekDays.take(5).forEachIndexed { dayIndex, day ->
-        val numClasses = when (dayIndex) {
-            0 -> 3 // Lunes: 3 clases
-            1 -> 3 // Martes: 3 clases
-            2 -> 3 // Miércoles: 3 clases
-            3 -> 3 // Jueves: 3 clases
-            4 -> 3 // Viernes: 3 clases
-            else -> 1
-        }
+        if (classroom != null && teacher != null && discipline != null) {
+            // Encontrar el día correspondiente (day_of_week: 1=Lunes, 2=Martes, etc.)
+            val dayOfWeek = weekDays.getOrNull((schedule.day_of_week - 1).toInt())
 
-        repeat(numClasses) { classIndex ->
-            sampleClasses.add(
+            if (dayOfWeek != null) {
                 ClassSchedule(
-                    className = disciplines[classIndex % disciplines.size],
-                    teacher = teachers[classIndex % teachers.size],
-                    schedule = schedules[classIndex % schedules.size],
-                    location = "Unidad Mérida",
-                    classType = classTypes[classIndex % classTypes.size],
-                    roomNumber = (classIndex % 3) + 1,
-                    day = day,
-                    timeSlot = TimeSlot(9 + classIndex, 0, schedules[classIndex % schedules.size]),
-                    discipline = disciplines[classIndex % disciplines.size]
+                    className = discipline.name,
+                    teacher = "${teacher.first_name} ${teacher.last_name_paternal ?: ""}".trim(),
+                    schedule = "${schedule.start_time} - ${schedule.end_time}",
+                    location = "Unidad Mérida", // O obtenerlo del franchise
+                    classType = "Regular",
+                    roomNumber = classroom.name.toIntOrNull() ?: 1,
+                    day = dayOfWeek,
+                    timeSlot = TimeSlot(0, 0, schedule.start_time),
+                    discipline = discipline.name
                 )
-            )
-        }
+            } else null
+        } else null
     }
-
-    return sampleClasses
 }

@@ -23,144 +23,131 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import appbbmges.composeapp.generated.resources.Res
-import appbbmges.composeapp.generated.resources.logoSystem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.example.appbbmges.data.Repository
 import org.example.appbbmges.ui.usuarios.AppColors
+import org.example.appbbmges.ClassroomEntity
 import org.example.appbbmges.DisciplineSelectAll
-import org.example.appbbmges.LevelEntity
+import org.example.appbbmges.TeacherEntity
+import appbbmges.composeapp.generated.resources.Res
+import appbbmges.composeapp.generated.resources.logoSystem
 import org.jetbrains.compose.resources.painterResource
 
-enum class ClassFormStep {
+enum class TrialClassStep {
     INFO,
     CONFIRMATION
 }
 
-sealed class ClassFormState {
-    object Idle : ClassFormState()
-    object Loading : ClassFormState()
-    data class Error(val message: String) : ClassFormState()
-    object Success : ClassFormState()
+sealed class TrialClassState {
+    object Idle : TrialClassState()
+    object Loading : TrialClassState()
+    object Success : TrialClassState()
+    data class Error(val message: String) : TrialClassState()
 }
-
-data class ClassValidationResult(
-    val isValid: Boolean,
-    val nameError: String? = null,
-    val teacherError: String? = null,
-    val studentsError: String? = null,
-    val priceError: String? = null,
-    val descriptionError: String? = null,
-    val disciplineError: String? = null,
-    val levelError: String? = null
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddNewClassMuestra(
+fun AddNewTrialClassScreen(
     onDismiss: () -> Unit,
     repository: Repository,
+    franchiseId: Long,
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
 
-    // Estados del formulario
-    var currentStep by remember { mutableStateOf(ClassFormStep.INFO) }
-    var classFormState by remember { mutableStateOf<ClassFormState>(ClassFormState.Idle) }
+    var currentStep by remember { mutableStateOf(TrialClassStep.INFO) }
+    var state by remember { mutableStateOf<TrialClassState>(TrialClassState.Idle) }
 
-    // Estados para los campos del formulario
-    var className by remember { mutableStateOf("") }
-    var teacherName by remember { mutableStateOf("") }
-    var studentsCount by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var price by remember { mutableStateOf("") }
+    // Datos del alumno
+    var studentFirstName by remember { mutableStateOf("") }
+    var studentLastNamePaternal by remember { mutableStateOf("") }
+    var studentLastNameMaternal by remember { mutableStateOf("") }
+    var ageYears by remember { mutableStateOf("") }
+    var ageMonths by remember { mutableStateOf("") }
 
-    // Estados para los dropdowns
-    var expandedLevel by remember { mutableStateOf(false) }
-    var expandedDiscipline by remember { mutableStateOf(false) }
-    var selectedLevel by remember { mutableStateOf<LevelEntity?>(null) }
+    // Datos del adulto
+    var adultFirstName by remember { mutableStateOf("") }
+    var adultLastNamePaternal by remember { mutableStateOf("") }
+    var adultLastNameMaternal by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+
+    // Datos de clase
     var selectedDiscipline by remember { mutableStateOf<DisciplineSelectAll?>(null) }
+    var selectedTeacher by remember { mutableStateOf<TeacherEntity?>(null) }
+    var selectedClassroom by remember { mutableStateOf<ClassroomEntity?>(null) }
+    var requestDate by remember { mutableStateOf("") }
+    var scheduledDate by remember { mutableStateOf("") }
+    var scheduledTime by remember { mutableStateOf("") }
 
-    // Estados para los datos
-    val levels = remember { mutableStateOf<List<LevelEntity>>(emptyList()) }
+    // Dropdowns
+    var expandedDiscipline by remember { mutableStateOf(false) }
+    var expandedTeacher by remember { mutableStateOf(false) }
+    var expandedClassroom by remember { mutableStateOf(false) }
+
     val disciplines = remember { mutableStateOf<List<DisciplineSelectAll>>(emptyList()) }
+    val teachers = remember { mutableStateOf<List<TeacherEntity>>(emptyList()) }
+    val classrooms = remember { mutableStateOf<List<ClassroomEntity>>(emptyList()) }
 
-    // Cargar datos iniciales
+    // Cargar datos
     LaunchedEffect(Unit) {
-        levels.value = repository.getAllLevels()
         disciplines.value = repository.getAllDisciplines()
+        teachers.value = repository.getAllTeachers()
+        classrooms.value = repository.getClassroomsByFranchiseId(franchiseId)
     }
-
-    // Filtrar disciplinas basadas en el nivel seleccionado
-    val filteredDisciplines = remember(selectedLevel, disciplines.value) {
-        if (selectedLevel == null) {
-            disciplines.value
-        } else {
-            disciplines.value.filter { it.level_id == selectedLevel?.id }
-        }
-    }
-
-    // Validación
-    var validationResult by remember { mutableStateOf(ClassValidationResult(true)) }
 
     fun validateForm(): Boolean {
-        val result = ClassValidationResult(
-            isValid = true,
-            nameError = if (className.isBlank()) "Nombre de clase requerido" else null,
-            teacherError = if (teacherName.isBlank()) "Profesor requerido" else null,
-            studentsError = when {
-                studentsCount.isBlank() -> "Número de alumnos requerido"
-                studentsCount.toIntOrNull() == null -> "Número inválido"
-                studentsCount.toInt() <= 0 -> "Debe ser mayor a 0"
-                else -> null
-            },
-            priceError = when {
-                price.isBlank() -> "Precio requerido"
-                price.toDoubleOrNull() == null -> "Precio inválido"
-                price.toDouble() < 0 -> "Debe ser positivo"
-                else -> null
-            },
-            descriptionError = if (description.isBlank()) "Descripción requerida" else null,
-            disciplineError = if (selectedDiscipline == null) "Seleccione una disciplina" else null,
-            levelError = if (selectedLevel == null) "Seleccione un nivel" else null
-        )
-
-        validationResult = result.copy(
-            isValid = result.nameError == null &&
-                    result.teacherError == null &&
-                    result.studentsError == null &&
-                    result.priceError == null &&
-                    result.descriptionError == null &&
-                    result.disciplineError == null &&
-                    result.levelError == null
-        )
-
-        return validationResult.isValid
+        return studentFirstName.isNotBlank() &&
+                ageYears.toIntOrNull() != null &&
+                selectedDiscipline != null &&
+                adultFirstName.isNotBlank() &&
+                phone.isNotBlank()
     }
 
     fun proceedToNext() {
         when (currentStep) {
-            ClassFormStep.INFO -> {
+            TrialClassStep.INFO -> {
                 if (validateForm()) {
-                    currentStep = ClassFormStep.CONFIRMATION
+                    currentStep = TrialClassStep.CONFIRMATION
                 }
             }
-            ClassFormStep.CONFIRMATION -> {
-                classFormState = ClassFormState.Loading
+
+            TrialClassStep.CONFIRMATION -> {
+                state = TrialClassState.Loading
                 coroutineScope.launch {
                     try {
-                        // Simular guardado en base de datos
                         delay(1000)
 
-                        // Aquí iría la lógica real para guardar la clase
-                        // repository.insertSchedule(...)
+                        repository.insertTrialClass(
+                            franchiseId = franchiseId,
+                            studentId = null,
+                            adultFirstName = adultFirstName,
+                            adultLastNamePaternal = adultLastNamePaternal.ifBlank { null },
+                            adultLastNameMaternal = adultLastNameMaternal.ifBlank { null },
+                            phone = phone,
+                            email = email.ifBlank { null },
+                            studentFirstName = studentFirstName,
+                            studentLastNamePaternal = studentLastNamePaternal.ifBlank { null },
+                            studentLastNameMaternal = studentLastNameMaternal.ifBlank { null },
+                            ageYears = ageYears.toLong(),
+                            ageMonths = ageMonths.toLongOrNull() ?: 0L,
+                            disciplineId = selectedDiscipline!!.id,
+                            requestDate = requestDate.ifBlank { "2025-01-01" },
+                            scheduledDate = scheduledDate.ifBlank { null },
+                            scheduledTime = scheduledTime.ifBlank { null },
+                            classroomId = selectedClassroom?.id,
+                            teacherId = selectedTeacher?.id,
+                            attendance = null,
+                            cancellationReason = null,
+                            howDiscovered = null
+                        )
 
-                        classFormState = ClassFormState.Success
+                        state = TrialClassState.Success
                         onDismiss()
                     } catch (e: Exception) {
-                        classFormState = ClassFormState.Error("Error al guardar: ${e.message}")
+                        state = TrialClassState.Error("Error al guardar: ${e.message}")
                     }
                 }
             }
@@ -176,14 +163,14 @@ fun AddNewClassMuestra(
         Card(
             modifier = Modifier
                 .widthIn(min = 400.dp, max = 500.dp)
-                .heightIn(max = 700.dp)
+                .heightIn(max = 720.dp)
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(4.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
-                BackgroundLogo()
+                TrialClassBackgroundLogo()
 
                 Column(
                     modifier = Modifier
@@ -193,15 +180,15 @@ fun AddNewClassMuestra(
                 ) {
                     val progress by animateFloatAsState(
                         targetValue = when (currentStep) {
-                            ClassFormStep.INFO -> 0.5f
-                            ClassFormStep.CONFIRMATION -> 1f
+                            TrialClassStep.INFO -> 0.5f
+                            TrialClassStep.CONFIRMATION -> 1f
                         },
                         animationSpec = tween(300),
                         label = "progress"
                     )
 
                     Text(
-                        text = "Agendar Nueva Clase",
+                        text = "Registrar Clase Muestra",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
@@ -212,296 +199,200 @@ fun AddNewClassMuestra(
                         color = AppColors.Primary
                     )
 
-                    Text(
-                        text = when (currentStep) {
-                            ClassFormStep.INFO -> "Paso 1: Información de la Clase"
-                            ClassFormStep.CONFIRMATION -> "Paso 2: Confirmación"
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
                     Spacer(Modifier.height(16.dp))
 
                     when (currentStep) {
-                        ClassFormStep.INFO -> {
-                            // Campo Nombre de Clase
+                        TrialClassStep.INFO -> {
+                            Text("Datos del Alumno", fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+
                             OutlinedTextField(
-                                value = className,
-                                onValueChange = {
-                                    className = it
-                                    if (validationResult.nameError != null) {
-                                        validationResult = validationResult.copy(nameError = null)
-                                    }
-                                },
-                                label = { Text("Nombre de la Clase") },
-                                isError = validationResult.nameError != null,
-                                supportingText = {
-                                    validationResult.nameError?.let {
-                                        Text(it, color = MaterialTheme.colorScheme.error)
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                keyboardActions = KeyboardActions(
-                                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                                )
-                            )
-
-                            Spacer(Modifier.height(12.dp))
-
-                            // Campo Profesor
-                            OutlinedTextField(
-                                value = teacherName,
-                                onValueChange = {
-                                    teacherName = it
-                                    if (validationResult.teacherError != null) {
-                                        validationResult = validationResult.copy(teacherError = null)
-                                    }
-                                },
-                                label = { Text("Profesor") },
-                                isError = validationResult.teacherError != null,
-                                supportingText = {
-                                    validationResult.teacherError?.let {
-                                        Text(it, color = MaterialTheme.colorScheme.error)
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                keyboardActions = KeyboardActions(
-                                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                                )
-                            )
-
-                            Spacer(Modifier.height(12.dp))
-
-                            // Campo Número de Alumnos
-                            OutlinedTextField(
-                                value = studentsCount,
-                                onValueChange = {
-                                    if (it.all { char -> char.isDigit() } || it.isEmpty()) {
-                                        studentsCount = it
-                                        if (validationResult.studentsError != null) {
-                                            validationResult = validationResult.copy(studentsError = null)
-                                        }
-                                    }
-                                },
-                                label = { Text("Número de Alumnos") },
-                                isError = validationResult.studentsError != null,
-                                supportingText = {
-                                    validationResult.studentsError?.let {
-                                        Text(it, color = MaterialTheme.colorScheme.error)
-                                    }
-                                },
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Next
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                                ),
+                                value = studentFirstName,
+                                onValueChange = { studentFirstName = it },
+                                label = { Text("Nombre del alumno") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
                             )
 
-                            Spacer(Modifier.height(12.dp))
-
-                            // Campo Descripción
+                            Spacer(Modifier.height(8.dp))
                             OutlinedTextField(
-                                value = description,
-                                onValueChange = {
-                                    description = it
-                                    if (validationResult.descriptionError != null) {
-                                        validationResult = validationResult.copy(descriptionError = null)
-                                    }
-                                },
-                                label = { Text("Descripción") },
-                                isError = validationResult.descriptionError != null,
-                                supportingText = {
-                                    validationResult.descriptionError?.let {
-                                        Text(it, color = MaterialTheme.colorScheme.error)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(100.dp),
-                                maxLines = 3,
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                                keyboardActions = KeyboardActions(
-                                    onNext = { focusManager.moveFocus(FocusDirection.Down) }
-                                )
-                            )
-
-                            Spacer(Modifier.height(12.dp))
-
-                            // Campo Precio
-                            OutlinedTextField(
-                                value = price,
-                                onValueChange = {
-                                    if (it.all { char -> char.isDigit() || char == '.' } || it.isEmpty()) {
-                                        price = it
-                                        if (validationResult.priceError != null) {
-                                            validationResult = validationResult.copy(priceError = null)
-                                        }
-                                    }
-                                },
-                                label = { Text("Precio ($)") },
-                                isError = validationResult.priceError != null,
-                                supportingText = {
-                                    validationResult.priceError?.let {
-                                        Text(it, color = MaterialTheme.colorScheme.error)
-                                    }
-                                },
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Done
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onDone = { focusManager.clearFocus() }
-                                ),
+                                value = studentLastNamePaternal,
+                                onValueChange = { studentLastNamePaternal = it },
+                                label = { Text("Apellido paterno") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = studentLastNameMaternal,
+                                onValueChange = { studentLastNameMaternal = it },
+                                label = { Text("Apellido materno") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                OutlinedTextField(
+                                    value = ageYears,
+                                    onValueChange = { value ->
+                                        if (value.all { char -> char.isDigit() } || value.isEmpty()) {
+                                            ageYears = value
+                                        }
+                                    },
+                                    label = { Text("Años") },
+                                    modifier = Modifier.weight(1f),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                )
+                                OutlinedTextField(
+                                    value = ageMonths,
+                                    onValueChange = { value ->
+                                        if (value.all { char -> char.isDigit() } || value.isEmpty()) {
+                                            ageMonths = value
+                                        }
+                                    },
+                                    label = { Text("Meses") },
+                                    modifier = Modifier.weight(1f),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                                )
+                            }
+
+                            Spacer(Modifier.height(16.dp))
+                            Text("Datos del Adulto Responsable", fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(8.dp))
+
+                            OutlinedTextField(
+                                value = adultFirstName,
+                                onValueChange = { adultFirstName = it },
+                                label = { Text("Nombre del adulto") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = adultLastNamePaternal,
+                                onValueChange = { adultLastNamePaternal = it },
+                                label = { Text("Apellido paterno") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = phone,
+                                onValueChange = { phone = it },
+                                label = { Text("Teléfono") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = email,
+                                onValueChange = { email = it },
+                                label = { Text("Correo (opcional)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                             )
 
                             Spacer(Modifier.height(16.dp))
+                            Text("Datos de la Clase", fontWeight = FontWeight.Bold)
 
-                            // Dropdown para Niveles
-                            ExposedDropdownMenuBox(
-                                expanded = expandedLevel,
-                                onExpandedChange = { expandedLevel = it }
-                            ) {
-                                OutlinedTextField(
-                                    value = selectedLevel?.name ?: "Seleccione nivel",
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text("Nivel") },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedLevel) },
-                                    modifier = Modifier
-                                        .menuAnchor()
-                                        .fillMaxWidth(),
-                                    isError = validationResult.levelError != null,
-                                    supportingText = {
-                                        validationResult.levelError?.let {
-                                            Text(it, color = MaterialTheme.colorScheme.error)
-                                        }
-                                    }
-                                )
-                                ExposedDropdownMenu(
-                                    expanded = expandedLevel,
-                                    onDismissRequest = { expandedLevel = false }
-                                ) {
-                                    levels.value.forEach { level ->
-                                        DropdownMenuItem(
-                                            text = { Text(level.name) },
-                                            onClick = {
-                                                selectedLevel = level
-                                                selectedDiscipline = null // Resetear disciplina al cambiar nivel
-                                                expandedLevel = false
-                                                if (validationResult.levelError != null) {
-                                                    validationResult = validationResult.copy(levelError = null)
-                                                }
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(Modifier.height(12.dp))
-
-                            // Dropdown para Disciplinas
-                            ExposedDropdownMenuBox(
+                            Spacer(Modifier.height(8.dp))
+                            TrialDropdownField(
+                                label = "Disciplina",
+                                value = selectedDiscipline?.name ?: "Seleccione disciplina",
                                 expanded = expandedDiscipline,
-                                onExpandedChange = { expandedDiscipline = it }
-                            ) {
-                                OutlinedTextField(
-                                    value = selectedDiscipline?.let { "${it.name} (${it.level_name})" } ?: "Seleccione disciplina",
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text("Disciplina") },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDiscipline) },
-                                    modifier = Modifier
-                                        .menuAnchor()
-                                        .fillMaxWidth(),
-                                    enabled = selectedLevel != null,
-                                    isError = validationResult.disciplineError != null,
-                                    supportingText = {
-                                        validationResult.disciplineError?.let {
-                                            Text(it, color = MaterialTheme.colorScheme.error)
-                                        }
-                                    }
-                                )
-                                ExposedDropdownMenu(
-                                    expanded = expandedDiscipline,
-                                    onDismissRequest = { expandedDiscipline = false }
-                                ) {
-                                    filteredDisciplines.forEach { discipline ->
-                                        DropdownMenuItem(
-                                            text = { Text("${discipline.name} (${discipline.level_name})") },
-                                            onClick = {
-                                                selectedDiscipline = discipline
-                                                expandedDiscipline = false
-                                                if (validationResult.disciplineError != null) {
-                                                    validationResult = validationResult.copy(disciplineError = null)
-                                                }
-                                            }
-                                        )
-                                    }
+                                onExpandedChange = { expandedDiscipline = it },
+                                items = disciplines.value.map { it.name },
+                                onItemSelected = { name ->
+                                    selectedDiscipline = disciplines.value.first { it.name == name }
                                 }
-                            }
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            TrialDropdownField(
+                                label = "Profesor",
+                                value = selectedTeacher?.first_name ?: "Seleccione profesor",
+                                expanded = expandedTeacher,
+                                onExpandedChange = { expandedTeacher = it },
+                                items = teachers.value.map { it.first_name },
+                                onItemSelected = { name ->
+                                    selectedTeacher = teachers.value.first { it.first_name == name }
+                                }
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            TrialDropdownField(
+                                label = "Salón",
+                                value = selectedClassroom?.name ?: "Seleccione salón",
+                                expanded = expandedClassroom,
+                                onExpandedChange = { expandedClassroom = it },
+                                items = classrooms.value.map { it.name },
+                                onItemSelected = { name ->
+                                    selectedClassroom = classrooms.value.first { it.name == name }
+                                }
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = scheduledDate,
+                                onValueChange = { scheduledDate = it },
+                                label = { Text("Fecha programada (YYYY-MM-DD)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = scheduledTime,
+                                onValueChange = { scheduledTime = it },
+                                label = { Text("Hora programada (HH:mm)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
                         }
 
-                        ClassFormStep.CONFIRMATION -> {
-                            // Vista de confirmación
+                        TrialClassStep.CONFIRMATION -> {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color(0xFFF5F5F5)
-                                )
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F5F5))
                             ) {
                                 Column(
                                     modifier = Modifier.padding(16.dp),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text(
-                                        text = "Confirmar Datos de la Clase",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-
-                                    Divider(color = AppColors.Primary.copy(alpha = 0.3f))
-
-                                    // Mostrar todos los datos ingresados
-                                    ConfirmationRow("Nombre:", className)
-                                    ConfirmationRow("Profesor:", teacherName)
-                                    ConfirmationRow("Alumnos:", studentsCount)
-                                    ConfirmationRow("Descripción:", description)
-                                    ConfirmationRow("Precio:", "$$price")
-                                    selectedLevel?.let {
-                                        ConfirmationRow("Nivel:", it.name)
-                                    }
-                                    selectedDiscipline?.let {
-                                        ConfirmationRow("Disciplina:", "${it.name} (${it.level_name})")
-                                    }
+                                    Text("Confirmar Datos", fontWeight = FontWeight.Bold)
+                                    HorizontalDivider(color = AppColors.Primary.copy(alpha = 0.3f))
+                                    TrialConfirmationRow("Alumno:", studentFirstName)
+                                    TrialConfirmationRow("Edad:", "$ageYears años $ageMonths meses")
+                                    TrialConfirmationRow("Adulto:", adultFirstName)
+                                    TrialConfirmationRow("Teléfono:", phone)
+                                    TrialConfirmationRow("Disciplina:", selectedDiscipline?.name ?: "")
+                                    TrialConfirmationRow("Profesor:", selectedTeacher?.first_name ?: "")
+                                    TrialConfirmationRow("Salón:", selectedClassroom?.name ?: "")
+                                    TrialConfirmationRow("Fecha:", scheduledDate)
+                                    TrialConfirmationRow("Hora:", scheduledTime)
                                 }
                             }
 
-                            // Mostrar estado de carga o error
-                            when (classFormState) {
-                                is ClassFormState.Loading -> {
+                            when (state) {
+                                is TrialClassState.Loading -> {
                                     Spacer(Modifier.height(16.dp))
                                     CircularProgressIndicator(
                                         modifier = Modifier.align(Alignment.CenterHorizontally),
                                         color = AppColors.Primary
                                     )
                                 }
-                                is ClassFormState.Error -> {
-                                    Spacer(Modifier.height(16.dp))
+                                is TrialClassState.Error -> {
                                     Text(
-                                        text = (classFormState as ClassFormState.Error).message,
+                                        text = (state as TrialClassState.Error).message,
                                         color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.padding(top = 8.dp)
                                     )
                                 }
                                 else -> {}
@@ -509,9 +400,7 @@ fun AddNewClassMuestra(
                         }
                     }
 
-                    Spacer(Modifier.weight(1f))
-
-                    // Botones de navegación
+                    Spacer(Modifier.height(20.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -519,45 +408,26 @@ fun AddNewClassMuestra(
                         Button(
                             onClick = onDismiss,
                             modifier = Modifier.weight(1f),
-                            enabled = classFormState !is ClassFormState.Loading,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFff8abe),
-                                disabledContainerColor = Color(0xFFff8abe).copy(alpha = 0.6f)
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Cancelar")
-                        }
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFff8abe))
+                        ) { Text("Cancelar") }
 
-                        if (currentStep == ClassFormStep.CONFIRMATION) {
+                        if (currentStep == TrialClassStep.CONFIRMATION) {
                             Button(
-                                onClick = { currentStep = ClassFormStep.INFO },
+                                onClick = { currentStep = TrialClassStep.INFO },
                                 modifier = Modifier.weight(1f),
-                                enabled = classFormState !is ClassFormState.Loading,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFff8abe),
-                                    disabledContainerColor = Color(0xFFff8abe).copy(alpha = 0.6f)
-                                ),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Atrás")
-                            }
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFff8abe))
+                            ) { Text("Atrás") }
                         }
 
                         Button(
                             onClick = { proceedToNext() },
                             modifier = Modifier.weight(1f),
-                            enabled = classFormState !is ClassFormState.Loading,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = AppColors.Primary,
-                                disabledContainerColor = AppColors.Primary.copy(alpha = 0.6f)
-                            ),
-                            shape = RoundedCornerShape(8.dp)
+                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary)
                         ) {
                             Text(
                                 when (currentStep) {
-                                    ClassFormStep.INFO -> "Siguiente"
-                                    ClassFormStep.CONFIRMATION -> "Confirmar"
+                                    TrialClassStep.INFO -> "Siguiente"
+                                    TrialClassStep.CONFIRMATION -> "Guardar"
                                 }
                             )
                         }
@@ -568,38 +438,55 @@ fun AddNewClassMuestra(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BackgroundLogo() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
+private fun TrialDropdownField(
+    label: String,
+    value: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    items: List<String>,
+    onItemSelected: (String) -> Unit
+) {
+    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = onExpandedChange) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth()
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
+            items.forEach { item ->
+                DropdownMenuItem(
+                    text = { Text(item) },
+                    onClick = {
+                        onItemSelected(item)
+                        onExpandedChange(false)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrialClassBackgroundLogo() {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Image(
             painter = painterResource(Res.drawable.logoSystem),
             contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(40.dp)
-                .alpha(0.08f),
+            modifier = Modifier.fillMaxSize().padding(40.dp).alpha(0.08f),
             contentScale = ContentScale.Fit
         )
     }
 }
 
 @Composable
-private fun ConfirmationRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium
-        )
+private fun TrialConfirmationRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, fontWeight = FontWeight.Bold)
+        Text(value)
     }
 }
