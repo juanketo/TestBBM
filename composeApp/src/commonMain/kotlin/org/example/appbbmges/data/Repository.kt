@@ -1094,6 +1094,7 @@ class Repository(private val database: AppDatabaseBaby) {
         )
     }
 
+
     fun getAllPayments(): List<PaymentEntity> {
         return database.expensesDbQueries.getAllPayments().executeAsList()
     }
@@ -1111,7 +1112,7 @@ class Repository(private val database: AppDatabaseBaby) {
         studentId: Long,
         amount: Double,
         description: String,
-        paymentDate: Long,
+        paymentDate: String,
         baseAmount: Double,
         discount: Double,
         membershipInfo: String?,

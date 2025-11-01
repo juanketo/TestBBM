@@ -3,6 +3,7 @@ package org.example.appbbmges.ui.diciplinashorarios
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -48,14 +49,11 @@ data class ClassSchedule(
     val discipline: String
 )
 
-// Disciplinas disponibles
 data class Discipline(
     val name: String,
     val color: Color,
     val isEnabled: Boolean = true
 )
-
-// --- New Definitions for Internal Navigation ---
 
 sealed class DisciplinasHorariosScreenState {
     object Calendar : DisciplinasHorariosScreenState()
@@ -72,7 +70,6 @@ fun DisciplinasHorariosScreen(navController: SimpleNavController, repository: Re
     val currentUser = repository.getCurrentUser()
     val franchiseId = currentUser?.franchise_id ?: 1L
 
-    // Disciplinas disponibles (puedes obtenerlas del repository)
     val availableDisciplines = remember {
         listOf(
             Discipline("Danza Aérea", Color(0xFF4CAF50)),
@@ -82,23 +79,19 @@ fun DisciplinasHorariosScreen(navController: SimpleNavController, repository: Re
         )
     }
 
-    // Cargar clases reales desde el repository
     val scheduledClasses = remember(currentWeek, franchiseId) {
         mutableStateOf(loadClassesFromRepository(repository, franchiseId, currentWeek))
     }
 
     var currentScreenState by remember { mutableStateOf<DisciplinasHorariosScreenState>(DisciplinasHorariosScreenState.Calendar) }
 
-    // Callbacks
     val onDismissClassMuestra: () -> Unit = {
         currentScreenState = DisciplinasHorariosScreenState.Calendar
-        // Recargar clases después de agregar una nueva
         scheduledClasses.value = loadClassesFromRepository(repository, franchiseId, currentWeek)
     }
 
     val onDismissNewClass: () -> Unit = {
         currentScreenState = DisciplinasHorariosScreenState.Calendar
-        // Recargar clases después de agregar una nueva
         scheduledClasses.value = loadClassesFromRepository(repository, franchiseId, currentWeek)
     }
 
@@ -134,8 +127,8 @@ fun DisciplinasHorariosScreen(navController: SimpleNavController, repository: Re
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    // Lista de días con clases
-                    WeeklyScheduleList(
+                    // NUEVO: Vista tipo Trello/Kanban
+                    TrelloStyleScheduleView(
                         weekDays = currentWeek,
                         scheduledClasses = scheduledClasses.value
                     )
@@ -161,7 +154,184 @@ fun DisciplinasHorariosScreen(navController: SimpleNavController, repository: Re
     }
 }
 
-// --- New Components ---
+// NUEVO: Vista principal estilo Trello
+@Composable
+fun TrelloStyleScheduleView(
+    weekDays: List<CalendarDay>,
+    scheduledClasses: List<ClassSchedule>
+) {
+    // Solo días laborales (Lunes a Sábado)
+    val workDays = weekDays.take(6)
+
+    LazyRow(
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        items(workDays) { day ->
+            DayColumn(
+                day = day,
+                classes = scheduledClasses.filter { it.day.date == day.date }
+            )
+        }
+    }
+}
+
+// NUEVO: Columna de un día (como una lista de Trello)
+@Composable
+fun DayColumn(
+    day: CalendarDay,
+    classes: List<ClassSchedule>
+) {
+    Card(
+        modifier = Modifier
+            .width(280.dp)
+            .fillMaxHeight(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFF2C2C2C) // Fondo oscuro como en tu mockup
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(12.dp)
+        ) {
+            // Header del día
+            Text(
+                text = day.dayName.lowercase(),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                ),
+                color = Color.White,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+
+            // Lista de clases (tarjetas)
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(classes) { classSchedule ->
+                    TrelloClassCard(classSchedule = classSchedule)
+                }
+            }
+        }
+    }
+}
+
+// NUEVO: Tarjeta de clase estilo Trello
+@Composable
+fun TrelloClassCard(
+    classSchedule: ClassSchedule
+) {
+    val cardColor = when (classSchedule.discipline) {
+        "Danza Aérea" -> Color(0xFF29B6F6) // Azul claro
+        "Ballet" -> Color(0xFFBA68C8) // Morado
+        "K-Pop" -> Color(0xFFFF7043) // Naranja
+        "Mexidanza" -> Color(0xFF26C6DA) // Cyan
+        else -> Color(0xFF757575)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Barra lateral con número de salón
+            Box(
+                modifier = Modifier
+                    .width(60.dp)
+                    .height(120.dp)
+                    .background(
+                        color = cardColor,
+                        shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = classSchedule.roomNumber.toString(),
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 40.sp
+                    ),
+                    color = Color.White
+                )
+            }
+
+            // Contenido de la tarjeta
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Título de la disciplina
+                Text(
+                    text = classSchedule.discipline.uppercase(),
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    ),
+                    color = Color.Black
+                )
+
+                // Maestra
+                Row {
+                    Text(
+                        text = "Maestra: ",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = Color.Black
+                    )
+                    Text(
+                        text = classSchedule.teacher,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Black
+                    )
+                }
+
+                // Horario
+                Row {
+                    Text(
+                        text = "Horario: ",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = Color.Black
+                    )
+                }
+                Text(
+                    text = classSchedule.schedule,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Black
+                )
+
+                // Sucursal
+                Row {
+                    Text(
+                        text = "Sucursal: ",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = Color.Black
+                    )
+                }
+                Text(
+                    text = classSchedule.location,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Black
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun DisciplinesRow(
@@ -247,172 +417,6 @@ fun ActionButtonsRow(
     }
 }
 
-@Composable
-fun WeeklyScheduleList(
-    weekDays: List<CalendarDay>,
-    scheduledClasses: List<ClassSchedule>
-) {
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Solo mostrar días laborales (Lunes a Viernes)
-        val workDays = weekDays.take(5)
-
-        items(workDays) { day ->
-            val dayClasses = scheduledClasses.filter { it.day.date == day.date }
-
-            DayScheduleSection(
-                day = day,
-                classes = dayClasses
-            )
-        }
-    }
-}
-
-@Composable
-fun DayScheduleSection(
-    day: CalendarDay,
-    classes: List<ClassSchedule>
-) {
-    Column {
-        // Header del día
-        Text(
-            text = "${day.dayName.uppercase()} ${day.dayNumber}-${getMonthName(day.month)}-${day.year}",
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold
-            ),
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        // Tarjetas de clases
-        if (classes.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                classes.forEach { classSchedule ->
-                    ClassCard(
-                        classSchedule = classSchedule,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        } else {
-            Text(
-                text = "No hay clases programadas",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(16.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun ClassCard(
-    classSchedule: ClassSchedule,
-    modifier: Modifier = Modifier
-) {
-    val cardColor = when (classSchedule.discipline) {
-        "Danza Aérea" -> Color(0xFF2196F3)
-        "Ballet" -> Color(0xFFBA68C8)
-        "K-Pop" -> Color(0xFFFF7043)
-        "Mexidanza" -> Color(0xFF26C6DA)
-        else -> Color(0xFF757575)
-    }
-
-    Card(
-        modifier = modifier.height(120.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // Sección del número del salón (1/3 del ancho)
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(0.3f)
-                    .background(
-                        color = cardColor,
-                        shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = classSchedule.roomNumber.toString(),
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 48.sp
-                    ),
-                    color = Color.White
-                )
-            }
-
-            // Sección del contenido (2/3 del ancho)
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(0.7f)
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Título de la disciplina
-                Text(
-                    text = classSchedule.discipline.uppercase(),
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    ),
-                    color = Color.Black
-                )
-
-                // Información detallada
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = "Maestra: ${classSchedule.teacher}",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = Color.Black
-                    )
-                    Text(
-                        text = "Horario:",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = Color.Black
-                    )
-                    Text(
-                        text = classSchedule.schedule,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Black
-                    )
-                    Text(
-                        text = "Sucursal:",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = Color.Black
-                    )
-                    Text(
-                        text = classSchedule.location,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Black
-                    )
-                }
-            }
-        }
-    }
-}
-
 // --- Helper Functions ---
 
 fun getCurrentWeekForDate(referenceDate: LocalDate): List<CalendarDay> {
@@ -462,7 +466,6 @@ fun getMonthName(monthNumber: Int): String {
     }
 }
 
-// Función para cargar clases desde el repository
 fun loadClassesFromRepository(
     repository: Repository,
     franchiseId: Long,
@@ -476,7 +479,6 @@ fun loadClassesFromRepository(
         val discipline = repository.getDisciplineById(schedule.discipline_id)
 
         if (classroom != null && teacher != null && discipline != null) {
-            // Encontrar el día correspondiente (day_of_week: 1=Lunes, 2=Martes, etc.)
             val dayOfWeek = weekDays.getOrNull((schedule.day_of_week - 1).toInt())
 
             if (dayOfWeek != null) {
@@ -484,7 +486,7 @@ fun loadClassesFromRepository(
                     className = discipline.name,
                     teacher = "${teacher.first_name} ${teacher.last_name_paternal ?: ""}".trim(),
                     schedule = "${schedule.start_time} - ${schedule.end_time}",
-                    location = "Unidad Mérida", // O obtenerlo del franchise
+                    location = "Unidad Mérida",
                     classType = "Regular",
                     roomNumber = classroom.name.toIntOrNull() ?: 1,
                     day = dayOfWeek,
