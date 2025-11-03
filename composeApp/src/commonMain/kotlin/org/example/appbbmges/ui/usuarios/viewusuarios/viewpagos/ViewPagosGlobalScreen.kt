@@ -59,7 +59,7 @@ fun ViewPagosGlobalScreen(
     var errorMessage by remember { mutableStateOf("") }
     var selectedPaymentMethod by remember { mutableStateOf("Efectivo") }
 
-    val availableMemberships by produceState<List<MembershipInfo>>(emptyList()) {
+    val availableMemberships by produceState(emptyList()) {
         value = try {
             paymentCalculator.getAvailableMemberships()
         } catch (_: Exception) {
@@ -186,7 +186,7 @@ fun ViewPagosGlobalScreen(
                                 EmptyStateCard()
                             }
                             is PaymentSelection.SiblingsWithMixedDisciplines -> {
-                                // Manejar este caso si es necesario
+
                             }
                         }
 
@@ -196,29 +196,24 @@ fun ViewPagosGlobalScreen(
                             enrollmentFee = currentInscriptionPrice
                         )
 
-                        // Método de pago
                         PaymentMethodSelector(
                             selectedPaymentMethod = selectedPaymentMethod,
                             onMethodSelected = { selectedPaymentMethod = it }
                         )
 
-                        // Desglose de precios
                         paymentResult?.let { result ->
                             PriceBreakdownCard(result)
 
-                            // Información de ahorro
                             if (result.discount > 0) {
                                 SavingsInfoCard(result)
                             }
                         }
 
-                        // Mostrar errores
                         if (showError) {
                             ErrorCard(errorMessage)
                         }
                     }
 
-                    // Botones de acción
                     ActionButtons(
                         paymentResult = paymentResult,
                         showError = showError,
@@ -230,13 +225,13 @@ fun ViewPagosGlobalScreen(
                                             studentId = studentId,
                                             amount = result.finalAmount,
                                             description = result.description,
-                                            paymentDate = Clock.System.now().toEpochMilliseconds(),
+                                            paymentDate = Clock.System.now().toString(),
                                             baseAmount = result.baseAmount,
                                             discount = result.discount,
                                             membershipInfo = if (selectedType is PaymentSelection.Membership) {
                                                 availableMemberships.find { it.id == selectedMembershipId }?.name
                                             } else {
-                                                "${numClasses} disciplina(s)"
+                                                "$numClasses discipline(s)"
                                             },
                                             inscriptionId = if (includeEnrollment) 1L else null
                                         )

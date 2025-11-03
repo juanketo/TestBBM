@@ -226,7 +226,7 @@ SELECT * FROM FranchiseEntity WHERE id = ?;
 
 franchiseUpdate:
 UPDATE FranchiseEntity
-SET name = ?, email = ?, phone = ?, base_price = ?, currency = ?, address_street = ?, address_number = ?, address_zip = ?, address_city = ?, address_country = ?, tax_name = ?, tax_id = ?, zone = ?, is_new = ?, active = ?
+SET name = ?, email = ?, phone = ?, base_price = ?, currency = ?, address_street = ?, address_number = ?, address_neighborhood = ?, address_zip = ?, address_city = ?, address_country = ?, tax_name = ?, tax_id = ?, zone = ?, is_new = ?, active = ?
 WHERE id = ?;
 
 franchiseDelete:

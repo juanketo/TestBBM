@@ -97,8 +97,10 @@ class Repository(private val database: AppDatabaseBaby) {
 
     fun isRoleAvailableInFranchise(roleId: Long, franchiseId: Long): Boolean {
         return database.expensesDbQueries.isRoleAvailableInFranchise(roleId, franchiseId)
-            .executeAsOneOrNull() != null
+            .executeAsOne()
     }
+
+
 
     fun getRolesWithoutFranchises(): List<RoleEntity> {
         return database.expensesDbQueries.rolesWithoutFranchises().executeAsList()
@@ -308,13 +310,14 @@ class Repository(private val database: AppDatabaseBaby) {
     }
 
     fun updateFranchise(
-        id: Long, name: String, email: String?, phone: String?, basePrice: Double?, currency: String?, addressStreet: String?, addressNumber: String?,
-        addressNeighborhood: String?, addressZip: String?, addressCity: String?, addressCountry: String?, taxName: String?, taxId: String?, zone: String?,
+        id: Long, name: String, email: String?, phone: String?, basePrice: Double?, currency: String?,
+        addressStreet: String?, addressNumber: String?, addressNeighborhood: String?, addressZip: String?,
+        addressCity: String?, addressCountry: String?, taxName: String?, taxId: String?, zone: String?,
         isNew: Long, active: Long
     ) {
         database.expensesDbQueries.franchiseUpdate(
-            name, email, phone, basePrice, currency, addressStreet, addressNumber, addressZip,
-            addressCity, addressCountry, taxName, taxId, zone, isNew, active, id
+            name, email, phone, basePrice, currency, addressStreet, addressNumber, addressNeighborhood,
+            addressZip, addressCity, addressCountry, taxName, taxId, zone, isNew, active, id
         )
     }
 
@@ -361,10 +364,7 @@ class Repository(private val database: AppDatabaseBaby) {
 
         database.expensesDbQueries.transaction {
             levelIds.forEach { levelId ->
-                val level = getLevelById(levelId)
-                if (level == null) {
-                    return@forEach
-                }
+                val level = getLevelById(levelId) ?: return@forEach
 
                 val disciplineName = "$baseName ${level.name}".trim()
                 try {
@@ -1083,7 +1083,7 @@ class Repository(private val database: AppDatabaseBaby) {
         studentId: Long,
         amount: Double,
         description: String,
-        paymentDate: Long,
+        paymentDate: String,
         baseAmount: Double,
         discount: Double,
         membershipInfo: String?,
@@ -1236,4 +1236,5 @@ class Repository(private val database: AppDatabaseBaby) {
             }
         }
     }
+
 }

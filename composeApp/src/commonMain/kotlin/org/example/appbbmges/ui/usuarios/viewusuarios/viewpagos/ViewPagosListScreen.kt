@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -262,12 +263,10 @@ private fun PaymentSummary(payments: List<PaymentEntity>) {
             )
         }
 
-        Divider(
+        HorizontalDivider(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            color = Color.Gray.copy(alpha = 0.2f),
-            thickness = 1.dp
+                .padding(vertical = 12.dp), thickness = 1.dp, color = Color.Gray.copy(alpha = 0.2f)
         )
 
         if (lastPayment != null) {
@@ -365,10 +364,10 @@ private fun PaymentsList(
                     onDeleteClick = { onDeleteClick(payment) }
                 )
                 if (payment != payments.last()) {
-                    Divider(
+                    HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        color = Color.Gray.copy(alpha = 0.1f),
-                        thickness = 1.dp
+                        thickness = 1.dp,
+                        color = Color.Gray.copy(alpha = 0.1f)
                     )
                 }
             }
@@ -410,7 +409,6 @@ private fun PaymentRow(
             }
         }
 
-        // Monto
         Text(
             text = "$${payment.amount.toInt()} MXN",
             fontSize = 14.sp,
@@ -536,12 +534,10 @@ private fun DeleteConfirmationDialog(
                     text = "Monto: $${payment.amount.toInt()} MXN",
                     fontSize = 14.sp
                 )
-                payment.description?.let {
-                    Text(
-                        text = "Concepto: $it",
-                        fontSize = 14.sp
-                    )
-                }
+                Text(
+                    text = "Concepto: ${payment.description}",
+                    fontSize = 14.sp
+                )
             }
         },
         confirmButton = {
@@ -562,8 +558,21 @@ private fun DeleteConfirmationDialog(
     )
 }
 
-private fun formatTimestamp(timestamp: Long): String {
-    val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(timestamp)
-    val date = instant.toLocalDateTime(kotlinx.datetime.TimeZone.currentSystemDefault()).date
-    return "${date.dayOfMonth.toString().padStart(2, '0')}/${date.monthNumber.toString().padStart(2, '0')}/${date.year}"
+private fun formatTimestamp(dateString: String): String {
+    return try {
+        val datePart = dateString.split(" ").firstOrNull() ?: dateString
+        val parts = datePart.split("-")
+
+        if (parts.size == 3) {
+            val year = parts[0]
+            val month = parts[1].padStart(2, '0')
+            val day = parts[2].padStart(2, '0')
+            "$day/$month/$year"
+        } else {
+            dateString
+        }
+    } catch (e: Exception) {
+        println("Error formateando fecha: ${e.message}")
+        dateString
+    }
 }
