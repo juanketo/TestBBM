@@ -173,6 +173,50 @@ class Repository(private val database: AppDatabaseBaby) {
         }
     }
 
+    fun insertFranchiseeWithUser(
+        franchiseId: Long,
+        firstName: String,
+        lastNamePaternal: String?,
+        lastNameMaternal: String?,
+        gender: String?,
+        birthDate: String?,
+        nationality: String?,
+        taxId: String?,
+        phone: String?,
+        email: String?,
+        addressStreet: String?,
+        addressZip: String?,
+        emergencyContactName: String?,
+        emergencyContactPhone: String?,
+        startDate: String?,
+        username: String,
+        password: String,
+        roleId: Long,
+        active: Long = 1
+    ): Long {
+        return database.transactionWithResult {
+            database.expensesDbQueries.franchiseeCreate(
+                franchiseId, firstName, lastNamePaternal, lastNameMaternal, gender, birthDate,
+                nationality, taxId, phone, email, addressStreet, addressZip,
+                emergencyContactName, emergencyContactPhone, startDate, active
+            )
+
+            val franchiseeId = database.expensesDbQueries.lastInsertRowId().executeAsOne()
+
+            database.expensesDbQueries.userCreateWithFranchisee(
+                username, password, franchiseId, active, franchiseeId
+            )
+            val userId = database.expensesDbQueries.lastInsertRowId().executeAsOne()
+
+            database.expensesDbQueries.userRoleAssign(userId, roleId, franchiseId)
+            franchiseeId
+        }
+    }
+
+    fun getUserByFranchiseeId(franchiseeId: Long): UserEntity? {
+        return database.expensesDbQueries.selectUserByFranchiseeId(franchiseeId).executeAsOneOrNull()
+    }
+
     private var currentUser: UserEntity? = null
 
     fun setCurrentUser(user: UserEntity) {

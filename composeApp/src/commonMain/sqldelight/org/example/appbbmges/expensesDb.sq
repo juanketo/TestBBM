@@ -108,7 +108,6 @@ LEFT JOIN RoleFranchiseEntity rf ON r.id = rf.role_id
 LEFT JOIN FranchiseEntity f ON rf.franchise_id = f.id
 ORDER BY r.name, f.name;
 
--- UserEntity
 CREATE TABLE UserEntity (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE COLLATE NOCASE,
@@ -118,8 +117,18 @@ CREATE TABLE UserEntity (
     student_id INTEGER REFERENCES StudentEntity(id) ON DELETE SET NULL,
     teacher_id INTEGER REFERENCES TeacherEntity(id) ON DELETE SET NULL,
     administrative_id INTEGER REFERENCES AdministrativeEntity(id) ON DELETE SET NULL,
+    franchisee_id INTEGER REFERENCES FranchiseeEntity(id) ON DELETE SET NULL,
     FOREIGN KEY(franchise_id) REFERENCES FranchiseEntity(id)
 );
+
+-- Crear usuario vinculado a franquiciatario
+userCreateWithFranchisee:
+INSERT INTO UserEntity (username, password, franchise_id, active, franchisee_id)
+VALUES (?, ?, ?, ?, ?);
+
+-- Buscar usuario por franchisee_id
+selectUserByFranchiseeId:
+SELECT * FROM UserEntity WHERE franchisee_id = ?;
 
 
 lastInsertRowId:
