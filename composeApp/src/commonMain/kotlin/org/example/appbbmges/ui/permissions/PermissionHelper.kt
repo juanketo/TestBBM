@@ -17,6 +17,8 @@ class PermissionHelper(
     private val repository: Repository
 ) {
     private var permissions: Set<String> = emptySet()
+    private var isSuperAdmin: Boolean = false
+
     private val _isLoaded = MutableStateFlow(false)
     val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
 
@@ -25,9 +27,20 @@ class PermissionHelper(
 
     fun loadPermissions() {
         try {
-            permissions = repository.getUserPermissionsByFranchise(userId, franchiseId).toSet()
+            isSuperAdmin = repository.isSuperAdmin(userId)
+
+            if (isSuperAdmin) {
+                permissions = permissionsByModule.values.flatten().toSet()
+                println("Super Admin detectado - Acceso total concedido")
+                println("Total de permisos: ${permissions.size}")
+            } else {
+                permissions = repository.getUserPermissionsByFranchise(userId, franchiseId).toSet()
+                println("Usuario normal - Permisos cargados: ${permissions.size}")
+            }
+
             _permissionsFlow.value = permissions
             _isLoaded.value = true
+
         } catch (e: Exception) {
             println("Error cargando permisos: ${e.message}")
             e.printStackTrace()
@@ -43,6 +56,8 @@ class PermissionHelper(
     }
 
     fun can(permission: String): Boolean {
+        if (isSuperAdmin) return true
+
         if (_isLoaded.value.not()) {
             return false
         }
@@ -50,22 +65,26 @@ class PermissionHelper(
     }
 
     fun canAny(vararg perms: String): Boolean {
+        if (isSuperAdmin) return true
         if (_isLoaded.value.not()) return false
         return perms.any { can(it) }
     }
 
     fun canAll(vararg perms: String): Boolean {
+        if (isSuperAdmin) return true
         if (_isLoaded.value.not()) return false
         return perms.all { can(it) }
     }
 
     fun canViewSection(module: String): Boolean {
+        if (isSuperAdmin) return true
         if (_isLoaded.value.not()) return false
         val perms = permissionsByModule[module] ?: return false
         return perms.any { permissions.contains(it) }
     }
 
     fun getAccessibleModules(): List<String> {
+        if (isSuperAdmin) return permissionsByModule.keys.toList()
         if (_isLoaded.value.not()) return emptyList()
         return permissionsByModule.filter { (_, perms) ->
             perms.any { permissions.contains(it) }
@@ -77,11 +96,21 @@ class PermissionHelper(
     }
 
     fun isAdmin(): Boolean {
+        if (isSuperAdmin) return true
         if (_isLoaded.value.not()) return false
         return can("CONFIG_AVANZADA_VER") || can("RESPALDO_DATOS")
     }
 
     fun getModuleCapabilities(module: String): ModuleCapabilities {
+        if (isSuperAdmin) {
+            return ModuleCapabilities(
+                canView = true,
+                canCreate = true,
+                canEdit = true,
+                canDelete = true
+            )
+        }
+
         if (_isLoaded.value.not()) {
             return ModuleCapabilities(canView = false, canCreate = false, canEdit = false, canDelete = false)
         }
@@ -97,6 +126,10 @@ class PermissionHelper(
     }
 
     fun getPermissionsByModule(): Map<String, List<String>> {
+        if (isSuperAdmin) {
+            return permissionsByModule.mapValues { it.value }
+        }
+
         if (_isLoaded.value.not()) return emptyMap()
 
         return permissionsByModule.mapNotNull { (module, perms) ->
@@ -106,29 +139,40 @@ class PermissionHelper(
     }
 
     fun canAccessDashboard(): Boolean {
+        if (isSuperAdmin) return true
         return can("DASHBOARD_VER")
     }
 
     fun clearPermissions() {
         permissions = emptySet()
+        isSuperAdmin = false
         _permissionsFlow.value = emptySet()
         _isLoaded.value = false
     }
 
     fun getPermissionsSummary(): String {
         return buildString {
-            appendLine("=== Resumen de Permisos ===")
+            appendLine("Resumen de Permisos")
             appendLine("Usuario ID: $userId")
             appendLine("Franquicia ID: $franchiseId")
+            appendLine("Es Super Admin: ${if (isSuperAdmin) "SÍ" else "NO"}")
             appendLine("Permisos cargados: ${_isLoaded.value}")
             appendLine("Total de permisos: ${permissions.size}")
-            appendLine("\nMódulos accesibles:")
+
+            if (isSuperAdmin) {
+                appendLine("ACCESO TOTAL")
+            }
+
+            appendLine("Módulos accesibles:")
             getAccessibleModules().forEach {
                 appendLine("  - $it")
             }
-            appendLine("\nPermisos detallados:")
-            permissions.sorted().forEach {
-                appendLine("  ✓ $it")
+
+            if (!isSuperAdmin && permissions.isNotEmpty()) {
+                appendLine("Permisos detallados:")
+                permissions.sorted().forEach {
+                    appendLine("  ✓ $it")
+                }
             }
         }
     }

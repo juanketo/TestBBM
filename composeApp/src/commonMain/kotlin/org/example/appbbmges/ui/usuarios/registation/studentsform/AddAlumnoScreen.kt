@@ -20,6 +20,7 @@ import org.example.appbbmges.data.Repository
 import org.example.appbbmges.ui.usuarios.AppColors
 import org.jetbrains.compose.resources.painterResource
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddAlumnoScreen(
     onDismiss: () -> Unit,
@@ -96,17 +97,49 @@ fun AddAlumnoScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         if (isAdmin) {
-                            CustomDropdownField(
-                                value = selectedFranchise,
-                                onValueChange = { name ->
-                                    selectedFranchise = name
-                                    selectedFranchiseId = allFranchises.find { it.name == name }?.id ?: 0L
-                                },
-                                label = "Unidad",
-                                options = allFranchises.map { it.name },
-                                placeholder = "Selecciona la unidad",
-                                modifier = Modifier.weight(1f)
-                            )
+                            Box(modifier = Modifier.weight(1f)) {
+                                var expandedFranchise by remember { mutableStateOf(false) }
+
+                                ExposedDropdownMenuBox(
+                                    expanded = expandedFranchise,
+                                    onExpandedChange = { expandedFranchise = it }
+                                ) {
+                                    OutlinedTextField(
+                                        value = selectedFranchise,
+                                        onValueChange = { },
+                                        readOnly = true,
+                                        label = { Text("Unidad") },
+                                        placeholder = { Text("Selecciona la unidad") },
+                                        trailingIcon = {
+                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFranchise)
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = AppColors.Primary,
+                                            unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                                        ),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    ExposedDropdownMenu(
+                                        expanded = expandedFranchise,
+                                        onDismissRequest = { expandedFranchise = false }
+                                    ) {
+                                        allFranchises.forEach { franchise ->
+                                            DropdownMenuItem(
+                                                text = { Text(franchise.name) },
+                                                onClick = {
+                                                    selectedFranchise = franchise.name
+                                                    selectedFranchiseId = franchise.id
+                                                    expandedFranchise = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         } else {
                             CustomOutlinedTextField(
                                 value = selectedFranchise,
@@ -208,6 +241,22 @@ fun AddAlumnoScreen(
                             state.nextStep()
                         },
                         onSubmit = {
+                            // ✅ VALIDACIÓN 1: Verificar que se seleccionó una unidad
+                            if (selectedFranchiseId == 0L) {
+                                state.errors = state.errors.copy(
+                                    general = "Debes seleccionar una unidad antes de registrar."
+                                )
+                                return@FormNavigationButtons
+                            }
+
+                            // ✅ VALIDACIÓN 2: Verificar que se seleccionó un rol
+                            if (selectedRoleId == null) {
+                                state.errors = state.errors.copy(
+                                    general = "Debes seleccionar un rol antes de registrar."
+                                )
+                                return@FormNavigationButtons
+                            }
+
                             if (state.validateCurrentStep()) {
                                 val curp = state.data.curp.trim()
                                 if (curp.isNotEmpty()) {
@@ -218,13 +267,6 @@ fun AddAlumnoScreen(
                                         )
                                         return@FormNavigationButtons
                                     }
-                                }
-
-                                if (selectedRoleId == null) {
-                                    state.errors = state.errors.copy(
-                                        general = "Debes seleccionar un rol antes de registrar."
-                                    )
-                                    return@FormNavigationButtons
                                 }
 
                                 val username = state.data.username

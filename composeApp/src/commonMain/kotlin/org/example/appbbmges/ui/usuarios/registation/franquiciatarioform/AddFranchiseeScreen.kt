@@ -17,31 +17,74 @@ import androidx.compose.ui.unit.dp
 import appbbmges.composeapp.generated.resources.Res
 import appbbmges.composeapp.generated.resources.logoSystem
 import org.example.appbbmges.data.Repository
+import org.example.appbbmges.ui.sessions.SessionManager
 import org.example.appbbmges.ui.usuarios.AppColors
+import org.example.appbbmges.ui.usuarios.registation.studentsform.CustomOutlinedTextField
 import org.jetbrains.compose.resources.painterResource
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddFranchiseeScreen(
+fun AddFranquiciatarioScreen(
     onDismiss: () -> Unit,
     repository: Repository
 ) {
     val state = rememberFranchiseeFormState()
 
-    val currentUserDetails = remember { repository.getCurrentUserWithDetails() }
-    val isAdmin = currentUserDetails?.roleName?.lowercase() in listOf("admin", "administrador")
+    val permissionHelper = SessionManager.permissionHelper
+    val currentUserId = SessionManager.userId ?: 0L
+    val currentUserFranchiseId = SessionManager.franchiseId ?: 0L
 
-    val allFranchises = remember { repository.getAllFranchises() }
+    val canManageAllFranchises = permissionHelper?.can("FRANQUICIAS_VER") == true ||
+            repository.isSuperAdmin(currentUserId)
+
+    val availableFranchises = remember(canManageAllFranchises, currentUserFranchiseId) {
+        if (canManageAllFranchises) {
+            repository.getAllFranchises()
+        } else {
+            // Solo puede ver su propia franquicia
+            listOfNotNull(repository.getFranchiseById(currentUserFranchiseId))
+        }
+    }
+
     val allRoles = remember { repository.getAllRoles() }
 
     var selectedFranchise by remember {
-        mutableStateOf(if (isAdmin) "" else currentUserDetails?.franchiseName ?: "")
+        mutableStateOf(
+            if (canManageAllFranchises) {
+                ""
+            } else {
+                availableFranchises.firstOrNull()?.name ?: ""
+            }
+        )
     }
+
     var selectedFranchiseId by remember {
-        mutableStateOf(if (isAdmin) 0L else currentUserDetails?.franchiseId ?: 0L)
+        mutableStateOf(
+            if (canManageAllFranchises) {
+                0L
+            } else {
+                currentUserFranchiseId
+            }
+        )
     }
 
     var selectedRole by remember { mutableStateOf("") }
     var selectedRoleId by remember { mutableStateOf<Long?>(null) }
+
+    LaunchedEffect(
+        state.data.firstName,
+        state.data.lastNamePaternal,
+        state.data.lastNameMaternal,
+        selectedFranchise
+    ) {
+        if (state.data.firstName.isNotBlank() &&
+            state.data.lastNamePaternal.isNotBlank() &&
+            state.data.lastNameMaternal.isNotBlank() &&
+            selectedFranchise.isNotBlank()
+        ) {
+            state.generateCredentials(selectedFranchise)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -95,39 +138,103 @@ fun AddFranchiseeScreen(
                             .padding(bottom = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        if (isAdmin) {
-                            CustomDropdownField(
-                                value = selectedFranchise,
-                                onValueChange = { name ->
-                                    selectedFranchise = name
-                                    selectedFranchiseId = allFranchises.find { it.name == name }?.id ?: 0L
-                                },
-                                label = "Unidad",
-                                options = allFranchises.map { it.name },
-                                placeholder = "Selecciona la unidad",
-                                modifier = Modifier.weight(1f)
-                            )
-                        } else {
-                            CustomOutlinedTextField(
-                                value = selectedFranchise,
-                                onValueChange = {},
-                                label = "Unidad",
-                                readOnly = true,
-                                modifier = Modifier.weight(1f)
-                            )
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (canManageAllFranchises) {
+                                var expandedFranchise by remember { mutableStateOf(false) }
+
+                                ExposedDropdownMenuBox(
+                                    expanded = expandedFranchise,
+                                    onExpandedChange = { expandedFranchise = it }
+                                ) {
+                                    OutlinedTextField(
+                                        value = selectedFranchise,
+                                        onValueChange = { },
+                                        readOnly = true,
+                                        label = { Text("Unidad") },
+                                        placeholder = { Text("Selecciona la unidad") },
+                                        trailingIcon = {
+                                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedFranchise)
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = AppColors.Primary,
+                                            unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                                        ),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    ExposedDropdownMenu(
+                                        expanded = expandedFranchise,
+                                        onDismissRequest = { expandedFranchise = false }
+                                    ) {
+                                        availableFranchises.forEach { franchise ->
+                                            DropdownMenuItem(
+                                                text = { Text(franchise.name) },
+                                                onClick = {
+                                                    selectedFranchise = franchise.name
+                                                    selectedFranchiseId = franchise.id
+                                                    expandedFranchise = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                CustomOutlinedTextField(
+                                    value = selectedFranchise,
+                                    onValueChange = {},
+                                    label = "Unidad",
+                                    readOnly = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
 
-                        CustomDropdownField(
-                            value = selectedRole,
-                            onValueChange = { roleName ->
-                                selectedRole = roleName
-                                selectedRoleId = allRoles.find { it.name == roleName }?.id
-                            },
-                            label = "Rol",
-                            options = allRoles.map { it.name },
-                            placeholder = "Selecciona un rol",
-                            modifier = Modifier.weight(1f)
-                        )
+                        Box(modifier = Modifier.weight(1f)) {
+                            var expandedRole by remember { mutableStateOf(false) }
+
+                            ExposedDropdownMenuBox(
+                                expanded = expandedRole,
+                                onExpandedChange = { expandedRole = it }
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedRole,
+                                    onValueChange = { },
+                                    readOnly = true,
+                                    label = { Text("Rol") },
+                                    placeholder = { Text("Selecciona un rol") },
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedRole)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = AppColors.Primary,
+                                        unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+
+                                ExposedDropdownMenu(
+                                    expanded = expandedRole,
+                                    onDismissRequest = { expandedRole = false }
+                                ) {
+                                    allRoles.forEach { role ->
+                                        DropdownMenuItem(
+                                            text = { Text(role.name) },
+                                            onClick = {
+                                                selectedRole = role.name
+                                                selectedRoleId = role.id
+                                                expandedRole = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     FormProgressIndicator(
@@ -191,14 +298,22 @@ fun AddFranchiseeScreen(
                             state.nextStep()
                         },
                         onSubmit = {
-                            if (state.validateCurrentStep()) {
-                                if (selectedRoleId == null) {
-                                    state.errors = state.errors.copy(
-                                        general = "Debes seleccionar un rol antes de registrar."
-                                    )
-                                    return@FormNavigationButtons
-                                }
 
+                            if (selectedFranchiseId == 0L) {
+                                state.errors = state.errors.copy(
+                                    general = "Debes seleccionar una unidad antes de registrar."
+                                )
+                                return@FormNavigationButtons
+                            }
+
+                            if (selectedRoleId == null) {
+                                state.errors = state.errors.copy(
+                                    general = "Debes seleccionar un rol antes de registrar."
+                                )
+                                return@FormNavigationButtons
+                            }
+
+                            if (state.validateCurrentStep()) {
                                 val username = state.data.username
                                 val existingUser = repository.getUserByUsername(username)
                                 if (existingUser != null) {
@@ -230,11 +345,18 @@ fun AddFranchiseeScreen(
                                         roleId = selectedRoleId ?: 0L,
                                         active = if (state.data.active) 1L else 0L
                                     )
+
+                                    println("✓ Franquiciatario registrado exitosamente")
+                                    println("  - Usuario: ${state.data.username}")
+                                    println("  - Franquicia: $selectedFranchise (ID: $selectedFranchiseId)")
+                                    println("  - Rol ID: $selectedRoleId")
+
                                     onDismiss()
                                 } catch (e: Exception) {
                                     state.errors = state.errors.copy(
                                         general = "Error al guardar los datos: ${e.message}"
                                     )
+                                    println("✗ Error al registrar franquiciatario: ${e.message}")
                                 }
                             } else {
                                 state.errors = state.errors.copy(

@@ -92,7 +92,6 @@ object SessionManager {
         }
     }
 }
-
 sealed class SessionState {
     object Inactive : SessionState()
     data class Active(val userId: Long, val franchiseId: Long) : SessionState()

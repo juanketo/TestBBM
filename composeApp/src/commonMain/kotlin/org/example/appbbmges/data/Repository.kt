@@ -1265,20 +1265,47 @@ class Repository(private val database: AppDatabaseBaby) {
         return database.expensesDbQueries.studentSelectByBirthMonth(month).executeAsList()
     }
 
+    // En Repository.kt, actualiza el método initializeData():
+
     fun initializeData() {
         val existingUsers = getUserCount()
         if (existingUsers == 0L) {
+            // Crear franquicia principal si no existe
+            if (getFranchiseCount() == 0L) {
+                insertFranchise(
+                    name = "Sede Principal",
+                    email = null,
+                    phone = null,
+                    basePrice = 0.0,
+                    currency = "MXN",
+                    addressStreet = null,
+                    addressNumber = null,
+                    addressNeighborhood = null,
+                    addressZip = null,
+                    addressCity = null,
+                    addressCountry = null,
+                    taxName = null,
+                    taxId = null,
+                    zone = null,
+                    isNew = 0,
+                    active = 1
+                )
+            }
+
             insertUser(
                 username = "Adminpresi12",
                 password = "Adminpresi12",
-                franchiseId = 1
+                franchiseId = 1,
+                active = 1
             )
 
-            val user = getUserByUsername("Adminpresi12")
-            if (user != null) {
-                assignUserRole(userId = user.id, roleId = 1, franchiseId = 1)
-            }
+            println("Super Admin creado exitosamente")
         }
+    }
+
+    fun isSuperAdmin(userId: Long): Boolean {
+        val user = getUserById(userId)
+        return user?.username == "Adminpresi12"
     }
 
 }
