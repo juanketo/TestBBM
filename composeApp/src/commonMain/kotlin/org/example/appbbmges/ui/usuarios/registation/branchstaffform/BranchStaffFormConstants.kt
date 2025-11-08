@@ -1,6 +1,6 @@
-package org.example.appbbmges.ui.usuarios.registation.franquiciatarioform
+package org.example.appbbmges.ui.usuarios.registation.branchstaffform
 
-object FranchiseeFormConstants {
+object BranchStaffFormConstants {
     val genderOptions = listOf("Masculino", "Femenino")
 
     val nationalityOptions = listOf(

@@ -1,4 +1,4 @@
-package org.example.appbbmges.ui.usuarios.registation.franquiciatarioform
+package org.example.appbbmges.ui.usuarios.registation.branchstaffform
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -16,14 +16,10 @@ import org.example.appbbmges.ui.usuarios.registation.studentsform.CustomOutlined
 
 @Composable
 fun PersonalInfoStep(
-    data: FranchiseeFormData,
+    data: BranchStaffFormData,
     errors: FormErrors,
-    onDataChange: (FranchiseeFormData) -> Unit
+    onDataChange: (BranchStaffFormData) -> Unit
 ) {
-    // ✅ ELIMINADO: Este LaunchedEffect causaba el error
-    // Ya no generamos credenciales aquí, se hace en AddFranquiciatarioScreen con el LaunchedEffect
-    // que incluye selectedFranchise
-
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
         Row(
@@ -73,7 +69,7 @@ fun PersonalInfoStep(
                 value = data.gender,
                 onValueChange = { onDataChange(data.copy(gender = it)) },
                 label = "Género",
-                options = FranchiseeFormConstants.genderOptions,
+                options = BranchStaffFormConstants.genderOptions,
                 placeholder = "Seleccione su género",
                 modifier = Modifier.weight(1f)
             )
@@ -95,7 +91,7 @@ fun PersonalInfoStep(
                 value = data.nationality,
                 onValueChange = { onDataChange(data.copy(nationality = it)) },
                 label = "Nacionalidad",
-                options = FranchiseeFormConstants.nationalityOptions,
+                options = BranchStaffFormConstants.nationalityOptions,
                 placeholder = "Seleccione nacionalidad",
                 modifier = Modifier.weight(1f)
             )
@@ -131,7 +127,7 @@ fun PersonalInfoStep(
             CustomCountryCodeDropdown(
                 selectedCode = data.countryCode,
                 onCodeSelected = { onDataChange(data.copy(countryCode = it)) },
-                options = FranchiseeFormConstants.countryCodeOptions,
+                options = BranchStaffFormConstants.countryCodeOptions,
                 modifier = Modifier.width(120.dp)
             )
             CustomOutlinedTextField(
@@ -185,9 +181,9 @@ fun PersonalInfoStep(
 
 @Composable
 fun AddressInfoStep(
-    data: FranchiseeFormData,
+    data: BranchStaffFormData,
     errors: FormErrors,
-    onDataChange: (FranchiseeFormData) -> Unit
+    onDataChange: (BranchStaffFormData) -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -221,13 +217,13 @@ fun AddressInfoStep(
 
 @Composable
 fun AdditionalInfoStep(
-    data: FranchiseeFormData,
-    onDataChange: (FranchiseeFormData) -> Unit
+    data: BranchStaffFormData,
+    onDataChange: (BranchStaffFormData) -> Unit
 ) {
 
     LaunchedEffect(Unit) {
         if (data.startDate.isEmpty()) {
-            onDataChange(data.copy(startDate = FranchiseeFormUtils.getCurrentDate()))
+            onDataChange(data.copy(startDate = BranchStaffFormUtils.getCurrentDate()))
         }
     }
 
@@ -277,7 +273,7 @@ fun AdditionalInfoStep(
 
 @Composable
 fun ConfirmationStep(
-    data: FranchiseeFormData,
+    data: BranchStaffFormData,
     errors: FormErrors,
     modifier: Modifier = Modifier
 ) {
@@ -298,7 +294,7 @@ fun ConfirmationStep(
             if (data.lastNameMaternal.isNotEmpty()) Text("Apellido Materno: ${data.lastNameMaternal}")
             if (data.gender.isNotEmpty()) Text("Género: ${data.gender}")
             if (data.birthDate.isNotEmpty()) {
-                val displayDate = FranchiseeFormUtils.convertToDisplayFormat(data.birthDate)
+                val displayDate = BranchStaffFormUtils.convertToDisplayFormat(data.birthDate)
                 Text("Fecha de Nacimiento: $displayDate")
             }
             if (data.nationality.isNotEmpty()) Text("Nacionalidad: ${data.nationality}")
@@ -310,7 +306,7 @@ fun ConfirmationStep(
             if (data.emergencyContactName.isNotEmpty()) Text("Contacto de Emergencia: ${data.emergencyContactName}")
             if (data.emergencyContactPhone.isNotEmpty()) Text("Teléfono de Emergencia: ${data.emergencyContactPhone}")
             if (data.startDate.isNotEmpty()) {
-                val displayDate = FranchiseeFormUtils.convertToDisplayFormat(data.startDate)
+                val displayDate = BranchStaffFormUtils.convertToDisplayFormat(data.startDate)
                 Text("Fecha de Inicio: $displayDate")
             }
             Text("Estado: ${if (data.active) "Activo" else "Inactivo"}")

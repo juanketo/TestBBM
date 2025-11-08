@@ -1,4 +1,4 @@
-package org.example.appbbmges.ui.usuarios.registation.franquiciatarioform
+package org.example.appbbmges.ui.usuarios.registation.branchstaffform
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -7,18 +7,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 
 @Composable
-fun rememberFranchiseeFormState(): FranchiseeFormState {
-    return remember { FranchiseeFormState() }
+fun rememberBranchStaffFormState(): BranchStaffFormState {
+    return remember { BranchStaffFormState() }
 }
 
-class FranchiseeFormState {
-    var data by mutableStateOf(FranchiseeFormData())
+class BranchStaffFormState {
+    var data by mutableStateOf(BranchStaffFormData())
         private set
     var errors by mutableStateOf(FormErrors())
-    var currentStep by mutableStateOf(FranchiseeFormStep.PERSONAL_INFO)
+    var currentStep by mutableStateOf(BranchStaffFormStep.PERSONAL_INFO)
         private set
 
-    fun updateData(newData: FranchiseeFormData) {
+    fun updateData(newData: BranchStaffFormData) {
         data = newData
         errors = errors.copy(general = null)
     }
@@ -51,9 +51,9 @@ class FranchiseeFormState {
 
     fun validateCurrentStep(): Boolean {
         errors = when (currentStep) {
-            FranchiseeFormStep.PERSONAL_INFO -> FranchiseeFormValidation.validatePersonalInfo(data)
-            FranchiseeFormStep.ADDRESS_INFO -> FranchiseeFormValidation.validateAddressInfo(data)
-            FranchiseeFormStep.ADDITIONAL_INFO -> FranchiseeFormValidation.validateAdditionalInfo(data)
+            BranchStaffFormStep.PERSONAL_INFO -> BranchStaffFormValidation.validatePersonalInfo(data)
+            BranchStaffFormStep.ADDRESS_INFO -> BranchStaffFormValidation.validateAddressInfo(data)
+            BranchStaffFormStep.ADDITIONAL_INFO -> BranchStaffFormValidation.validateAdditionalInfo(data)
             else -> FormErrors()
         }
         return errors.isValid
@@ -66,10 +66,10 @@ class FranchiseeFormState {
     fun nextStep(): Boolean {
         if (validateCurrentStep()) {
             currentStep = when (currentStep) {
-                FranchiseeFormStep.PERSONAL_INFO -> FranchiseeFormStep.ADDRESS_INFO
-                FranchiseeFormStep.ADDRESS_INFO -> FranchiseeFormStep.ADDITIONAL_INFO
-                FranchiseeFormStep.ADDITIONAL_INFO -> FranchiseeFormStep.CONFIRMATION
-                FranchiseeFormStep.CONFIRMATION -> currentStep
+                BranchStaffFormStep.PERSONAL_INFO -> BranchStaffFormStep.ADDRESS_INFO
+                BranchStaffFormStep.ADDRESS_INFO -> BranchStaffFormStep.ADDITIONAL_INFO
+                BranchStaffFormStep.ADDITIONAL_INFO -> BranchStaffFormStep.CONFIRMATION
+                BranchStaffFormStep.CONFIRMATION -> currentStep
             }
             return true
         }
@@ -78,10 +78,10 @@ class FranchiseeFormState {
 
     fun previousStep() {
         currentStep = when (currentStep) {
-            FranchiseeFormStep.ADDRESS_INFO -> FranchiseeFormStep.PERSONAL_INFO
-            FranchiseeFormStep.ADDITIONAL_INFO -> FranchiseeFormStep.ADDRESS_INFO
-            FranchiseeFormStep.CONFIRMATION -> FranchiseeFormStep.ADDITIONAL_INFO
-            FranchiseeFormStep.PERSONAL_INFO -> currentStep
+            BranchStaffFormStep.ADDRESS_INFO -> BranchStaffFormStep.PERSONAL_INFO
+            BranchStaffFormStep.ADDITIONAL_INFO -> BranchStaffFormStep.ADDRESS_INFO
+            BranchStaffFormStep.CONFIRMATION -> BranchStaffFormStep.ADDITIONAL_INFO
+            BranchStaffFormStep.PERSONAL_INFO -> currentStep
         }
     }
 }

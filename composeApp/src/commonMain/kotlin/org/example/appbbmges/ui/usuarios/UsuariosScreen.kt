@@ -29,10 +29,11 @@ import org.example.appbbmges.StudentEntity
 import org.example.appbbmges.TeacherEntity
 import org.example.appbbmges.data.Repository
 import org.example.appbbmges.navigation.SimpleNavController
+import org.example.appbbmges.ui.sessions.SessionManager
 import org.example.appbbmges.ui.usuarios.registation.administrativeform.AddAdministrativoScreen
 import org.example.appbbmges.ui.usuarios.registation.studentsform.AddAlumnoScreen
 import org.example.appbbmges.ui.usuarios.registation.AddProfesorScreen
-import org.example.appbbmges.ui.usuarios.registation.franquiciatarioform.AddFranquiciatarioScreen
+import org.example.appbbmges.ui.usuarios.registation.branchstaffform.AddBranchStaffScreen
 import org.example.appbbmges.ui.usuarios.viewusuarios.ViewAdministrativoScreen
 import org.example.appbbmges.ui.usuarios.viewusuarios.ViewAlumnoScreen
 import org.example.appbbmges.ui.usuarios.viewusuarios.ViewFranquiciatarioScreen
@@ -59,28 +60,87 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
     var userToEdit by remember { mutableStateOf<Pair<Any, String>?>(null) }
     var selectedProfile by remember { mutableStateOf<Pair<String, Long>?>(null) }
 
-    val students = remember { mutableStateOf(repository.getAllStudents()) }
-    val teachers = remember { mutableStateOf(repository.getAllTeachers()) }
-    val franchisees = remember { mutableStateOf(repository.getAllFranchisees()) }
-    val administratives = remember { mutableStateOf(repository.getAllAdministratives()) }
+    val permissionHelper = SessionManager.permissionHelper
+    val currentUserId = SessionManager.userId ?: 0L
+    val currentUserFranchiseId = SessionManager.franchiseId ?: 0L
+
+    val canViewAllFranchises = permissionHelper?.can("FRANQUICIAS_VER") == true ||
+            repository.isSuperAdmin(currentUserId)
+
+    val students = remember { mutableStateOf(
+        if (canViewAllFranchises) {
+            repository.getAllStudents()
+        } else {
+            repository.getStudentsByFranchiseId(currentUserFranchiseId)
+        }
+    )}
+
+    val teachers = remember { mutableStateOf(
+        if (canViewAllFranchises) {
+            repository.getAllTeachers()
+        } else {
+            repository.getAllTeachers().filter { teacher ->
+                repository.getFranchiseTeachersByFranchiseId(currentUserFranchiseId)
+                    .any { it.teacher_id == teacher.id }
+            }
+        }
+    )}
+
+    val franchisees = remember { mutableStateOf(
+        if (canViewAllFranchises) {
+            repository.getAllFranchisees()
+        } else {
+            repository.getFranchiseesByFranchiseId(currentUserFranchiseId)
+        }
+    )}
+
+    val administratives = remember { mutableStateOf(
+        if (canViewAllFranchises) {
+            repository.getAllAdministratives()
+        } else {
+            repository.getAdministrativesByFranchiseId(currentUserFranchiseId)
+        }
+    )}
 
     LaunchedEffect(selectedTab, searchQuery) {
-        students.value = repository.getAllStudents()
-        teachers.value = repository.getAllTeachers()
-        franchisees.value = repository.getAllFranchisees()
-        administratives.value = repository.getAllAdministratives()
+        students.value = if (canViewAllFranchises) {
+            repository.getAllStudents()
+        } else {
+            repository.getStudentsByFranchiseId(currentUserFranchiseId)
+        }
+
+        teachers.value = if (canViewAllFranchises) {
+            repository.getAllTeachers()
+        } else {
+            repository.getAllTeachers().filter { teacher ->
+                repository.getFranchiseTeachersByFranchiseId(currentUserFranchiseId)
+                    .any { it.teacher_id == teacher.id }
+            }
+        }
+
+        franchisees.value = if (canViewAllFranchises) {
+            repository.getAllFranchisees()
+        } else {
+            repository.getFranchiseesByFranchiseId(currentUserFranchiseId)
+        }
+
+        administratives.value = if (canViewAllFranchises) {
+            repository.getAllAdministratives()
+        } else {
+            repository.getAdministrativesByFranchiseId(currentUserFranchiseId)
+        }
     }
 
     val filteredUsers: List<Pair<Any, String>> = when (selectedTab) {
         "Todos" -> mutableListOf<Pair<Any, String>>().apply {
             addAll(students.value.map { it to "Alumno" })
             addAll(teachers.value.map { it to "Profesor" })
-            addAll(franchisees.value.map { it to "Franquiciatario" })
+            addAll(franchisees.value.map { it to "Personal Sucursal" })
             addAll(administratives.value.map { it to "Administrativo" })
         }
         "Alumnos" -> students.value.map { it to "Alumno" }
         "Profesores" -> teachers.value.map { it to "Profesor" }
-        "Franquiciatarios" -> franchisees.value.map { it to "Franquiciatario" }
+        "Personal Sucursal" -> franchisees.value.map { it to "Personal Sucursal" }
         "Administrativos" -> administratives.value.map { it to "Administrativo" }
         else -> emptyList()
     }.filter { userPair ->
@@ -141,7 +201,7 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                     onDismissRequest = { expandedAdd = false },
                     modifier = Modifier.align(Alignment.BottomEnd)
                 ) {
-                    listOf("Alumno", "Profesor", "Franquiciatario", "Administrativo").forEach { userType ->
+                    listOf("Alumno", "Profesor", "Personal Sucursal", "Administrativo").forEach { userType ->
                         DropdownMenuItem(
                             text = { Text("Agregar $userType") },
                             onClick = {
@@ -165,28 +225,47 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                         "Alumno" -> AddAlumnoScreen(
                             onDismiss = {
                                 selectedUserType = null
-                                students.value = repository.getAllStudents()
+                                students.value = if (canViewAllFranchises) {
+                                    repository.getAllStudents()
+                                } else {
+                                    repository.getStudentsByFranchiseId(currentUserFranchiseId)
+                                }
                             },
                             repository = repository
                         )
                         "Profesor" -> AddProfesorScreen(
                             onDismiss = {
                                 selectedUserType = null
-                                teachers.value = repository.getAllTeachers()
+                                teachers.value = if (canViewAllFranchises) {
+                                    repository.getAllTeachers()
+                                } else {
+                                    repository.getAllTeachers().filter { teacher ->
+                                        repository.getFranchiseTeachersByFranchiseId(currentUserFranchiseId)
+                                            .any { it.teacher_id == teacher.id }
+                                    }
+                                }
                             },
                             repository = repository
                         )
-                        "Franquiciatario" -> AddFranquiciatarioScreen(
+                        "Personal Sucursal" -> AddBranchStaffScreen(
                             onDismiss = {
                                 selectedUserType = null
-                                franchisees.value = repository.getAllFranchisees()
+                                franchisees.value = if (canViewAllFranchises) {
+                                    repository.getAllFranchisees()
+                                } else {
+                                    repository.getFranchiseesByFranchiseId(currentUserFranchiseId)
+                                }
                             },
                             repository = repository
                         )
                         "Administrativo" -> AddAdministrativoScreen(
                             onDismiss = {
                                 selectedUserType = null
-                                administratives.value = repository.getAllAdministratives()
+                                administratives.value = if (canViewAllFranchises) {
+                                    repository.getAllAdministratives()
+                                } else {
+                                    repository.getAdministrativesByFranchiseId(currentUserFranchiseId)
+                                }
                             },
                             repository = repository
                         )
@@ -209,7 +288,7 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                             navController = navController,
                             onDismiss = { selectedProfile = null }
                         )
-                        "Franquiciatario" -> ViewFranquiciatarioScreen(
+                        "Personal Sucursal" -> ViewFranquiciatarioScreen(
                             franchiseeId = selectedProfile!!.second,
                             repository = repository,
                             navController = navController,
@@ -272,14 +351,14 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                                 "Todos" -> 0
                                 "Alumnos" -> 1
                                 "Profesores" -> 2
-                                "Franquiciatarios" -> 3
+                                "Personal Sucursal" -> 3
                                 "Administrativos" -> 4
                                 else -> 0
                             },
                             containerColor = Color.White,
                             contentColor = AppColors.Primary
                         ) {
-                            listOf("Todos", "Alumnos", "Profesores", "Franquiciatarios", "Administrativos").forEach { tab ->
+                            listOf("Todos", "Alumnos", "Profesores", "Personal Sucursal", "Administrativos").forEach { tab ->
                                 Tab(
                                     text = { Text(tab) },
                                     selected = selectedTab == tab,
@@ -480,10 +559,10 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                                                         )
                                                     }
                                                 }
-                                                "Franquiciatario" -> {
+                                                "Personal Sucursal" -> {
                                                     val franchisee = user as FranchiseeEntity
                                                     val franchiseeFullName = "${franchisee.first_name} ${franchisee.last_name_paternal ?: ""} ${franchisee.last_name_maternal ?: ""}".trim()
-                                                    Text("Franquiciatario", modifier = Modifier.weight(1.5f), color = AppColors.TextColor)
+                                                    Text("Personal Sucursal", modifier = Modifier.weight(1.5f), color = AppColors.TextColor)
                                                     Text(franchiseeFullName, modifier = Modifier.weight(2f), color = AppColors.TextColor)
                                                     Text(franchisee.phone ?: "-", modifier = Modifier.weight(2f), color = AppColors.TextColor)
                                                     Text(franchisee.email ?: "-", modifier = Modifier.weight(2f), color = AppColors.TextColor)
@@ -491,7 +570,7 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                                                     IconButton(
                                                         onClick = {
                                                             userToEdit = userPair
-                                                            selectedUserType = "Franquiciatario"
+                                                            selectedUserType = "Personal Sucursal"
                                                         },
                                                         modifier = Modifier.weight(0.5f)
                                                     ) {
@@ -516,7 +595,7 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                                                     }
                                                     IconButton(
                                                         onClick = {
-                                                            selectedProfile = Pair("Franquiciatario", franchisee.id)
+                                                            selectedProfile = Pair("Personal Sucursal", franchisee.id)
                                                         },
                                                         modifier = Modifier.weight(0.5f)
                                                     ) {
@@ -699,22 +778,41 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                                 "Alumno" -> {
                                     val student = user as StudentEntity
                                     repository.deleteStudent(student.id)
-                                    students.value = repository.getAllStudents()
+                                    students.value = if (canViewAllFranchises) {
+                                        repository.getAllStudents()
+                                    } else {
+                                        repository.getStudentsByFranchiseId(currentUserFranchiseId)
+                                    }
                                 }
                                 "Profesor" -> {
                                     val teacher = user as TeacherEntity
                                     repository.deleteTeacher(teacher.id)
-                                    teachers.value = repository.getAllTeachers()
+                                    teachers.value = if (canViewAllFranchises) {
+                                        repository.getAllTeachers()
+                                    } else {
+                                        repository.getAllTeachers().filter { t ->
+                                            repository.getFranchiseTeachersByFranchiseId(currentUserFranchiseId)
+                                                .any { it.teacher_id == t.id }
+                                        }
+                                    }
                                 }
-                                "Franquiciatario" -> {
+                                "Personal Sucursal" -> {
                                     val franchisee = user as FranchiseeEntity
                                     repository.deleteFranchisee(franchisee.id)
-                                    franchisees.value = repository.getAllFranchisees()
+                                    franchisees.value = if (canViewAllFranchises) {
+                                        repository.getAllFranchisees()
+                                    } else {
+                                        repository.getFranchiseesByFranchiseId(currentUserFranchiseId)
+                                    }
                                 }
                                 "Administrativo" -> {
                                     val admin = user as AdministrativeEntity
                                     repository.deleteAdministrative(admin.id)
-                                    administratives.value = repository.getAllAdministratives()
+                                    administratives.value = if (canViewAllFranchises) {
+                                        repository.getAllAdministratives()
+                                    } else {
+                                        repository.getAdministrativesByFranchiseId(currentUserFranchiseId)
+                                    }
                                 }
                             }
                             showDeleteDialog = false

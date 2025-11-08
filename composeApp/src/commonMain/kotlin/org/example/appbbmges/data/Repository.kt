@@ -173,6 +173,23 @@ class Repository(private val database: AppDatabaseBaby) {
         }
     }
 
+    // --- Avatar Updates ---
+    fun updateStudentAvatar(studentId: Long, avatarId: String) {
+        database.expensesDbQueries.studentUpdateAvatar(avatarId, studentId)
+    }
+
+    fun updateTeacherAvatar(teacherId: Long, avatarId: String) {
+        database.expensesDbQueries.teacherUpdateAvatar(avatarId, teacherId)
+    }
+
+    fun updateFranchiseeAvatar(franchiseeId: Long, avatarId: String) {
+        database.expensesDbQueries.franchiseeUpdateAvatar(avatarId, franchiseeId)
+    }
+
+    fun updateAdministrativeAvatar(administrativeId: Long, avatarId: String) {
+        database.expensesDbQueries.administrativeUpdateAvatar(avatarId, administrativeId)
+    }
+
     fun insertFranchiseeWithUser(
         franchiseId: Long,
         firstName: String,
@@ -192,13 +209,14 @@ class Repository(private val database: AppDatabaseBaby) {
         username: String,
         password: String,
         roleId: Long,
-        active: Long = 1
+        active: Long = 1,
+        avatarId: String = "avatar_01"
     ): Long {
         return database.transactionWithResult {
             database.expensesDbQueries.franchiseeCreate(
                 franchiseId, firstName, lastNamePaternal, lastNameMaternal, gender, birthDate,
                 nationality, taxId, phone, email, addressStreet, addressZip,
-                emergencyContactName, emergencyContactPhone, startDate, active
+                emergencyContactName, emergencyContactPhone, startDate, active, avatarId
             )
 
             val franchiseeId = database.expensesDbQueries.lastInsertRowId().executeAsOne()
@@ -212,6 +230,8 @@ class Repository(private val database: AppDatabaseBaby) {
             franchiseeId
         }
     }
+
+
 
     fun getUserByFranchiseeId(franchiseeId: Long): UserEntity? {
         return database.expensesDbQueries.selectUserByFranchiseeId(franchiseeId).executeAsOneOrNull()
@@ -565,12 +585,13 @@ class Repository(private val database: AppDatabaseBaby) {
         emergencyContactName: String?,
         emergencyContactPhone: String?,
         startDate: String?,
-        active: Long = 1
+        active: Long = 1,
+        avatarId: String = "avatar_01"
     ) {
         database.expensesDbQueries.franchiseeCreate(
             franchiseId, firstName, lastNamePaternal, lastNameMaternal, gender, birthDate,
             nationality, taxId, phone, email, addressStreet, addressZip,
-            emergencyContactName, emergencyContactPhone, startDate, active
+            emergencyContactName, emergencyContactPhone, startDate, active, avatarId
         )
     }
 
@@ -603,12 +624,13 @@ class Repository(private val database: AppDatabaseBaby) {
         emergencyContactName: String?,
         emergencyContactPhone: String?,
         startDate: String?,
-        active: Long
+        active: Long,
+        avatarId: String = "avatar_01"
     ) {
         database.expensesDbQueries.franchiseeUpdate(
             franchiseId, firstName, lastNamePaternal, lastNameMaternal, gender, birthDate,
             nationality, taxId, phone, email, addressStreet, addressZip,
-            emergencyContactName, emergencyContactPhone, startDate, active, id
+            emergencyContactName, emergencyContactPhone, startDate, active, avatarId, id
         )
     }
 
@@ -1105,6 +1127,8 @@ class Repository(private val database: AppDatabaseBaby) {
     fun getAllMemberships(): List<MembershipEntity> {
         return database.expensesDbQueries.membershipSelectAll().executeAsList()
     }
+
+
 
     fun getMembershipById(id: Long): MembershipEntity? {
         return database.expensesDbQueries.membershipSelectById(id).executeAsOneOrNull()

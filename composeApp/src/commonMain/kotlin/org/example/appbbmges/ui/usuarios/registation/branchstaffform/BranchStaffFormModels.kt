@@ -1,6 +1,6 @@
-package org.example.appbbmges.ui.usuarios.registation.franquiciatarioform
+package org.example.appbbmges.ui.usuarios.registation.branchstaffform
 
-data class FranchiseeFormData(
+data class BranchStaffFormData(
     val firstName: String = "",
     val lastNamePaternal: String = "",
     val lastNameMaternal: String = "",
@@ -18,7 +18,8 @@ data class FranchiseeFormData(
     val startDate: String = "",
     val active: Boolean = true,
     val username: String = "",
-    val password: String = ""
+    val password: String = "",
+    val avatarId: String = "avatar_01"
 )
 
 data class FormErrors(
@@ -44,7 +45,7 @@ data class FormErrors(
                 general == null
 }
 
-enum class FranchiseeFormStep {
+enum class BranchStaffFormStep {
     PERSONAL_INFO,
     ADDRESS_INFO,
     ADDITIONAL_INFO,

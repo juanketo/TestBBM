@@ -1,4 +1,4 @@
-package org.example.appbbmges.ui.usuarios.registation.franquiciatarioform
+package org.example.appbbmges.ui.usuarios.registation.branchstaffform
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,17 +13,17 @@ import org.example.appbbmges.ui.usuarios.AppColors
 
 @Composable
 fun FormProgressIndicator(
-    currentStep: FranchiseeFormStep,
+    currentStep: BranchStaffFormStep,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier) {
         LinearProgressIndicator(
             progress = {
                 when (currentStep) {
-                    FranchiseeFormStep.PERSONAL_INFO -> 0.25f
-                    FranchiseeFormStep.ADDRESS_INFO -> 0.50f
-                    FranchiseeFormStep.ADDITIONAL_INFO -> 0.75f
-                    FranchiseeFormStep.CONFIRMATION -> 1.0f
+                    BranchStaffFormStep.PERSONAL_INFO -> 0.25f
+                    BranchStaffFormStep.ADDRESS_INFO -> 0.50f
+                    BranchStaffFormStep.ADDITIONAL_INFO -> 0.75f
+                    BranchStaffFormStep.CONFIRMATION -> 1.0f
                 }
             },
             modifier = Modifier
@@ -33,10 +33,10 @@ fun FormProgressIndicator(
         )
         Text(
             text = when (currentStep) {
-                FranchiseeFormStep.PERSONAL_INFO -> "Datos Personales (Paso 1 de 4)"
-                FranchiseeFormStep.ADDRESS_INFO -> "Dirección (Paso 2 de 4)"
-                FranchiseeFormStep.ADDITIONAL_INFO -> "Información Adicional (Paso 3 de 4)"
-                FranchiseeFormStep.CONFIRMATION -> "Confirmación (Paso 4 de 4)"
+                BranchStaffFormStep.PERSONAL_INFO -> "Datos Personales (Paso 1 de 4)"
+                BranchStaffFormStep.ADDRESS_INFO -> "Dirección (Paso 2 de 4)"
+                BranchStaffFormStep.ADDITIONAL_INFO -> "Información Adicional (Paso 3 de 4)"
+                BranchStaffFormStep.CONFIRMATION -> "Confirmación (Paso 4 de 4)"
             },
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
@@ -47,7 +47,7 @@ fun FormProgressIndicator(
 
 @Composable
 fun FormNavigationButtons(
-    currentStep: FranchiseeFormStep,
+    currentStep: BranchStaffFormStep,
     onCancel: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
@@ -67,7 +67,7 @@ fun FormNavigationButtons(
             Text("Cancelar")
         }
         Spacer(modifier = Modifier.weight(1f))
-        if (currentStep != FranchiseeFormStep.PERSONAL_INFO) {
+        if (currentStep != BranchStaffFormStep.PERSONAL_INFO) {
             OutlinedButton(
                 onClick = onPrevious,
                 modifier = Modifier.width(110.dp),
@@ -78,12 +78,12 @@ fun FormNavigationButtons(
             Spacer(modifier = Modifier.width(8.dp))
         }
         Button(
-            onClick = if (currentStep == FranchiseeFormStep.CONFIRMATION) onSubmit else onNext,
-            modifier = Modifier.width(if (currentStep == FranchiseeFormStep.CONFIRMATION) 130.dp else 110.dp),
+            onClick = if (currentStep == BranchStaffFormStep.CONFIRMATION) onSubmit else onNext,
+            modifier = Modifier.width(if (currentStep == BranchStaffFormStep.CONFIRMATION) 130.dp else 110.dp),
             colors = ButtonDefaults.buttonColors(containerColor = AppColors.Primary),
             shape = RoundedCornerShape(8.dp)
         ) {
-            Text(if (currentStep == FranchiseeFormStep.CONFIRMATION) "Registrar" else "Siguiente")
+            Text(if (currentStep == BranchStaffFormStep.CONFIRMATION) "Registrar" else "Siguiente")
         }
     }
 }

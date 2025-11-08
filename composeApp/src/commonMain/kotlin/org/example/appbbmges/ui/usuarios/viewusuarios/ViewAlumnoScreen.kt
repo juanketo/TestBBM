@@ -5,14 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +26,8 @@ import org.example.appbbmges.PaymentEntity
 import kotlinx.datetime.*
 import org.example.appbbmges.navigation.SimpleNavController
 import org.example.appbbmges.ui.usuarios.viewusuarios.viewpagos.ViewPagosListScreen
+import org.example.appbbmges.ui.avatars.UserAvatar
+import org.example.appbbmges.ui.avatars.AvatarSelectorDialog
 
 object AppColors {
     val Primary = Color(0xFF00B4D8)
@@ -46,19 +45,21 @@ fun ViewAlumnoScreen(
     navController: SimpleNavController,
     onDismiss: () -> Unit = { navController.navigateBack() }
 ) {
-
     var selectedSection by remember { mutableStateOf<String?>("personal") }
     var showPaymentForm by remember { mutableStateOf(false) }
 
     // Estados de datos
-    val student by produceState<StudentEntity?>(null) {
-        value = repository.getStudentById(studentId)
-    }
+    var student by remember { mutableStateOf<StudentEntity?>(null) }
     val adults by produceState<List<StudentAuthorizedAdultEntity>>(emptyList()) {
         value = repository.getStudentAuthorizedAdultsByStudentId(studentId)
     }
     val payments by produceState<List<PaymentEntity>>(emptyList(), studentId) {
         value = repository.getPaymentsByStudentId(studentId)
+    }
+
+    // Cargar estudiante
+    LaunchedEffect(studentId) {
+        student = repository.getStudentById(studentId)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -81,7 +82,10 @@ fun ViewAlumnoScreen(
                     onDismiss = onDismiss,
                     onSectionClick = { section -> selectedSection = section },
                     onNewPaymentClick = { showPaymentForm = true },
-                    selectedSection = selectedSection ?: "personal"
+                    selectedSection = selectedSection ?: "personal",
+                    onStudentUpdated = { student = repository.getStudentById(studentId) },
+                    repository = repository,
+                    studentId = studentId
                 )
             }
 
@@ -116,8 +120,62 @@ fun ViewAlumnoMainScreen(
     onDismiss: () -> Unit,
     onSectionClick: (String) -> Unit,
     onNewPaymentClick: () -> Unit,
-    selectedSection: String
+    selectedSection: String,
+    onStudentUpdated: () -> Unit,
+    repository: Repository,
+    studentId: Long
 ) {
+    var isEditing by remember { mutableStateOf(false) }
+    var showSuccessMessage by remember { mutableStateOf(false) }
+    var showAvatarSelector by remember { mutableStateOf(false) }
+
+    // Estados editables
+    var firstName by remember { mutableStateOf("") }
+    var lastNamePaternal by remember { mutableStateOf("") }
+    var lastNameMaternal by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var addressStreet by remember { mutableStateOf("") }
+    var addressZip by remember { mutableStateOf("") }
+    var avatarId by remember { mutableStateOf("avatar_01") }
+
+    // Cargar datos iniciales
+    LaunchedEffect(student) {
+        student?.let { s ->
+            firstName = s.first_name
+            lastNamePaternal = s.last_name_paternal ?: ""
+            lastNameMaternal = s.last_name_maternal ?: ""
+            phone = s.phone ?: ""
+            email = s.email ?: ""
+            addressStreet = s.address_street ?: ""
+            addressZip = s.address_zip ?: ""
+            avatarId = s.avatar_id ?: "avatar_01"
+        }
+    }
+
+    if (showAvatarSelector) {
+        AvatarSelectorDialog(
+            currentAvatarId = avatarId,
+            onAvatarSelected = { newAvatarId ->
+                avatarId = newAvatarId
+                try {
+                    repository.updateStudentAvatar(studentId, newAvatarId)
+                    onStudentUpdated()
+                } catch (e: Exception) {
+                    println("Error al actualizar avatar: ${e.message}")
+                }
+            },
+            onDismiss = { showAvatarSelector = false }
+        )
+    }
+
+    if (showSuccessMessage) {
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(2000)
+            showSuccessMessage = false
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -149,70 +207,175 @@ fun ViewAlumnoMainScreen(
                 }
 
                 Row {
-                    OutlinedButton(
-                        onClick = { /* Acción de exportar */ },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color(0xFF6366F1)
-                        ),
-                        border = BorderStroke(1.dp, Color(0xFF6366F1))
-                    ) {
-                        Text("Exportar")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = { /* Acción de guardar */ },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6366F1)
-                        )
-                    ) {
-                        Text("Guardar", color = Color.White)
+                    if (isEditing) {
+                        OutlinedButton(
+                            onClick = {
+                                isEditing = false
+                                student?.let { s ->
+                                    firstName = s.first_name
+                                    lastNamePaternal = s.last_name_paternal ?: ""
+                                    lastNameMaternal = s.last_name_maternal ?: ""
+                                    phone = s.phone ?: ""
+                                    email = s.email ?: ""
+                                    addressStreet = s.address_street ?: ""
+                                    addressZip = s.address_zip ?: ""
+                                }
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color(0xFF6B7280)
+                            ),
+                            border = BorderStroke(1.dp, Color(0xFFD1D5DB))
+                        ) {
+                            Text("Cancelar")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                student?.let { s ->
+                                    try {
+                                        repository.updateStudent(
+                                            id = s.id,
+                                            franchiseId = s.franchise_id,
+                                            firstName = firstName,
+                                            lastNamePaternal = lastNamePaternal.ifBlank { null },
+                                            lastNameMaternal = lastNameMaternal.ifBlank { null },
+                                            gender = s.gender,
+                                            birthDate = s.birth_date,
+                                            nationality = s.nationality,
+                                            curp = s.curp,
+                                            phone = phone.ifBlank { null },
+                                            email = email.ifBlank { null },
+                                            addressStreet = addressStreet.ifBlank { null },
+                                            addressZip = addressZip.ifBlank { null },
+                                            parentFatherFirstName = s.parent_father_first_name,
+                                            parentFatherLastNamePaternal = s.parent_father_last_name_paternal,
+                                            parentFatherLastNameMaternal = s.parent_father_last_name_maternal,
+                                            parentMotherFirstName = s.parent_mother_first_name,
+                                            parentMotherLastNamePaternal = s.parent_mother_last_name_paternal,
+                                            parentMotherLastNameMaternal = s.parent_mother_last_name_maternal,
+                                            bloodType = s.blood_type,
+                                            chronicDisease = s.chronic_disease,
+                                            active = s.active
+                                        )
+                                        onStudentUpdated()
+                                        isEditing = false
+                                        showSuccessMessage = true
+                                    } catch (e: Exception) {
+                                        println("Error al guardar: ${e.message}")
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF6366F1)
+                            )
+                        ) {
+                            Text("Guardar", color = Color.White)
+                        }
+                    } else {
+                        Button(
+                            onClick = { isEditing = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF6366F1)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Editar", color = Color.White)
+                        }
                     }
                 }
             }
         }
 
-        student?.let { student ->
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                horizontalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                // Panel izquierdo - Información básica y avatar
-                Column(
+        Box(modifier = Modifier.fillMaxSize()) {
+            student?.let { student ->
+                Row(
                     modifier = Modifier
-                        .width(280.dp)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
+                    // Panel izquierdo
+                    Column(
+                        modifier = Modifier
+                            .width(280.dp)
+                            .fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        StudentProfileCard(
+                            student = student,
+                            avatarId = avatarId,
+                            onAvatarClick = { showAvatarSelector = true }
+                        )
 
-                    StudentProfileCard(student = student)
+                        StudentNavigationCard(
+                            onSectionClick = onSectionClick,
+                            selectedSection = selectedSection
+                        )
+                    }
 
-                    StudentNavigationCard(
-                        onSectionClick = onSectionClick,
-                        selectedSection = selectedSection
-                    )
+                    // Panel derecho
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                    ) {
+                        StudentPersonalSection(
+                            student = student,
+                            adults = adults,
+                            isEditing = isEditing,
+                            firstName = firstName,
+                            onFirstNameChange = { firstName = it },
+                            lastNamePaternal = lastNamePaternal,
+                            onLastNamePaternalChange = { lastNamePaternal = it },
+                            lastNameMaternal = lastNameMaternal,
+                            onLastNameMaternalChange = { lastNameMaternal = it },
+                            phone = phone,
+                            onPhoneChange = { phone = it },
+                            email = email,
+                            onEmailChange = { email = it },
+                            addressStreet = addressStreet,
+                            onAddressStreetChange = { addressStreet = it },
+                            addressZip = addressZip,
+                            onAddressZipChange = { addressZip = it }
+                        )
+                    }
                 }
-
-                // Panel derecho - Solo información personal
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+            } ?: run {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
                 ) {
-                    StudentPersonalSection(
-                        student = student,
-                        adults = adults
-                    )
+                    CircularProgressIndicator(color = Color(0xFF6366F1))
                 }
             }
-        } ?: run {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Color(0xFF6366F1))
+
+            // Snackbar de éxito
+            if (showSuccessMessage) {
+                Snackbar(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(16.dp),
+                    containerColor = Color(0xFF10B981),
+                    contentColor = Color.White
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text("Cambios guardados exitosamente")
+                    }
+                }
             }
         }
     }
@@ -225,7 +388,6 @@ fun StudentPersonalDetailScreen(
     onDismiss: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
-
         DetailScreenHeader(
             title = "Información Personal",
             onDismiss = onDismiss
@@ -239,7 +401,25 @@ fun StudentPersonalDetailScreen(
                     .padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                StudentPersonalSection(student = student, adults = adults)
+                StudentPersonalSection(
+                    student = student,
+                    adults = adults,
+                    isEditing = false,
+                    firstName = student.first_name,
+                    onFirstNameChange = {},
+                    lastNamePaternal = student.last_name_paternal ?: "",
+                    onLastNamePaternalChange = {},
+                    lastNameMaternal = student.last_name_maternal ?: "",
+                    onLastNameMaternalChange = {},
+                    phone = student.phone ?: "",
+                    onPhoneChange = {},
+                    email = student.email ?: "",
+                    onEmailChange = {},
+                    addressStreet = student.address_street ?: "",
+                    onAddressStreetChange = {},
+                    addressZip = student.address_zip ?: "",
+                    onAddressZipChange = {}
+                )
             }
         }
     }
@@ -369,7 +549,11 @@ private fun DetailScreenHeader(
 }
 
 @Composable
-private fun StudentProfileCard(student: StudentEntity) {
+private fun StudentProfileCard(
+    student: StudentEntity,
+    avatarId: String,
+    onAvatarClick: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -382,21 +566,13 @@ private fun StudentProfileCard(student: StudentEntity) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Avatar
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF6366F1)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Person,
-                    contentDescription = "Avatar",
-                    tint = Color.White,
-                    modifier = Modifier.size(40.dp)
-                )
-            }
+            // Avatar con funcionalidad de edición
+            UserAvatar(
+                avatarId = avatarId,
+                size = 80,
+                showEditIcon = true,
+                onEditClick = onAvatarClick
+            )
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -496,11 +672,25 @@ private fun NavigationItem(
     }
 }
 
-// Reutilizando las funciones y componentes del código original
 @Composable
 private fun StudentPersonalSection(
     student: StudentEntity,
-    adults: List<StudentAuthorizedAdultEntity>
+    adults: List<StudentAuthorizedAdultEntity>,
+    isEditing: Boolean,
+    firstName: String,
+    onFirstNameChange: (String) -> Unit,
+    lastNamePaternal: String,
+    onLastNamePaternalChange: (String) -> Unit,
+    lastNameMaternal: String,
+    onLastNameMaternalChange: (String) -> Unit,
+    phone: String,
+    onPhoneChange: (String) -> Unit,
+    email: String,
+    onEmailChange: (String) -> Unit,
+    addressStreet: String,
+    onAddressStreetChange: (String) -> Unit,
+    addressZip: String,
+    onAddressZipChange: (String) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -511,40 +701,52 @@ private fun StudentPersonalSection(
             title = "INFORMACIÓN PERSONAL",
             content = {
                 FormGrid {
-                    FormField(
+                    EditableFormField(
                         label = "Nombre",
-                        value = student.first_name ?: "",
+                        value = firstName,
+                        onValueChange = onFirstNameChange,
+                        enabled = isEditing,
                         modifier = Modifier.weight(1f)
                     )
-                    FormField(
-                        label = "Apellidos",
-                        value = "${student.last_name_paternal ?: ""} ${student.last_name_maternal ?: ""}".trim(),
-                        modifier = Modifier.weight(1f)
-                    )
+                    FormGrid {
+                        EditableFormField(
+                            label = "Apellido Paterno",
+                            value = lastNamePaternal,
+                            onValueChange = onLastNamePaternalChange,
+                            enabled = isEditing,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
 
                 FormGrid {
+                    EditableFormField(
+                        label = "Apellido Materno",
+                        value = lastNameMaternal,
+                        onValueChange = onLastNameMaternalChange,
+                        enabled = isEditing,
+                        modifier = Modifier.weight(1f)
+                    )
                     FormField(
                         label = "Estado",
                         value = if (student.active == 1L) "Activo" else "Inactivo",
                         modifier = Modifier.weight(1f)
                     )
-                    FormField(
-                        label = "Fecha de Nacimiento",
-                        value = student.birth_date ?: "",
-                        modifier = Modifier.weight(1f)
-                    )
                 }
 
                 FormGrid {
-                    FormField(
+                    EditableFormField(
                         label = "Correo Electrónico",
-                        value = student.email ?: "",
+                        value = email,
+                        onValueChange = onEmailChange,
+                        enabled = isEditing,
                         modifier = Modifier.weight(1f)
                     )
-                    FormField(
+                    EditableFormField(
                         label = "Teléfono",
-                        value = student.phone ?: "",
+                        value = phone,
+                        onValueChange = onPhoneChange,
+                        enabled = isEditing,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -562,14 +764,18 @@ private fun StudentPersonalSection(
             title = "DIRECCIÓN PERSONAL",
             content = {
                 FormGrid {
-                    FormField(
+                    EditableFormField(
                         label = "Dirección",
-                        value = student.address_street ?: "",
+                        value = addressStreet,
+                        onValueChange = onAddressStreetChange,
+                        enabled = isEditing,
                         modifier = Modifier.weight(1f)
                     )
-                    FormField(
+                    EditableFormField(
                         label = "Código Postal",
-                        value = student.address_zip ?: "",
+                        value = addressZip,
+                        onValueChange = onAddressZipChange,
+                        enabled = isEditing,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -702,8 +908,42 @@ private fun FormField(
         )
         OutlinedTextField(
             value = value,
-            onValueChange = { /* Solo lectura por ahora */ },
+            onValueChange = {},
             readOnly = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF6366F1),
+                unfocusedBorderColor = Color(0xFFD1D5DB),
+                disabledBorderColor = Color(0xFFD1D5DB),
+                disabledTextColor = Color(0xFF374151)
+            ),
+            shape = RoundedCornerShape(8.dp)
+        )
+    }
+}
+
+@Composable
+private fun EditableFormField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF374151)
+        )
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = enabled,
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color(0xFF6366F1),

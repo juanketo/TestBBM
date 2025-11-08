@@ -1,7 +1,7 @@
-package org.example.appbbmges.ui.usuarios.registation.franquiciatarioform
+package org.example.appbbmges.ui.usuarios.registation.branchstaffform
 
-object FranchiseeFormValidation {
-    fun validatePersonalInfo(data: FranchiseeFormData): FormErrors {
+object BranchStaffFormValidation {
+    fun validatePersonalInfo(data: BranchStaffFormData): FormErrors {
         return FormErrors(
             firstName = validateName(data.firstName, "nombre", true),
             lastNamePaternal = validateName(data.lastNamePaternal, "apellido paterno", false),
@@ -13,14 +13,14 @@ object FranchiseeFormValidation {
         )
     }
 
-    fun validateAddressInfo(data: FranchiseeFormData): FormErrors {
+    fun validateAddressInfo(data: BranchStaffFormData): FormErrors {
         return FormErrors(
             addressStreet = validateAddressStreet(data.addressStreet),
             addressZip = validateAddressZip(data.addressZip)
         )
     }
 
-    fun validateAdditionalInfo(data: FranchiseeFormData): FormErrors {
+    fun validateAdditionalInfo(data: BranchStaffFormData): FormErrors {
         return FormErrors(
             emergencyContactPhone = validateEmergencyPhone(data.emergencyContactPhone),
             startDate = validateStartDate(data.startDate)
@@ -44,7 +44,7 @@ object FranchiseeFormValidation {
             return "Formato de fecha inválido."
         }
 
-        val age = FranchiseeFormUtils.calculateAge(date)
+        val age = BranchStaffFormUtils.calculateAge(date)
         return when {
             age == null -> "Formato de fecha inválido."
             age < 18.0 -> "La edad mínima es 18 años."

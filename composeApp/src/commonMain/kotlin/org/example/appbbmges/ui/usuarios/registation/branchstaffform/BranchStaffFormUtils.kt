@@ -1,11 +1,11 @@
-package org.example.appbbmges.ui.usuarios.registation.franquiciatarioform
+package org.example.appbbmges.ui.usuarios.registation.branchstaffform
 
 import kotlinx.datetime.Clock
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
-object FranchiseeFormUtils {
+object BranchStaffFormUtils {
 
     fun calculateAge(birthDateString: String): Double? {
         if (birthDateString.length != 10 || !birthDateString.matches("\\d{4}-\\d{2}-\\d{2}".toRegex())) {
@@ -185,7 +185,7 @@ object UserCredentialsGenerator {
         val firstLetterPaternal = lastNamePaternal.first().uppercaseChar()
         val firstLetterMaternal = lastNameMaternal.first().lowercaseChar()
 
-        val dateCode = FranchiseeFormUtils.getCurrentDate().replace("-", "")
+        val dateCode = BranchStaffFormUtils.getCurrentDate().replace("-", "")
         val randomSuffix = kotlin.random.Random.nextInt(10, 100)
 
         return "$firstLetterName$secondLetterName$firstLetterPaternal$firstLetterMaternal$dateCode$randomSuffix"

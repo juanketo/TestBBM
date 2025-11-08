@@ -1,4 +1,4 @@
-package org.example.appbbmges.ui.usuarios.registation.franquiciatarioform
+package org.example.appbbmges.ui.usuarios.registation.branchstaffform
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -24,11 +24,11 @@ import org.jetbrains.compose.resources.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddFranquiciatarioScreen(
+fun AddBranchStaffScreen(
     onDismiss: () -> Unit,
     repository: Repository
 ) {
-    val state = rememberFranchiseeFormState()
+    val state = rememberBranchStaffFormState()
 
     val permissionHelper = SessionManager.permissionHelper
     val currentUserId = SessionManager.userId ?: 0L
@@ -41,7 +41,6 @@ fun AddFranquiciatarioScreen(
         if (canManageAllFranchises) {
             repository.getAllFranchises()
         } else {
-            // Solo puede ver su propia franquicia
             listOfNotNull(repository.getFranchiseById(currentUserFranchiseId))
         }
     }
@@ -125,7 +124,7 @@ fun AddFranquiciatarioScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     Text(
-                        text = "Registro de Franquiciatario",
+                        text = "Registro de Personal de Sucursal",
                         style = MaterialTheme.typography.headlineSmall,
                         color = AppColors.TextColor,
                         fontWeight = FontWeight.Bold,
@@ -245,7 +244,7 @@ fun AddFranquiciatarioScreen(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     when (state.currentStep) {
-                        FranchiseeFormStep.PERSONAL_INFO -> {
+                        BranchStaffFormStep.PERSONAL_INFO -> {
                             if (state.errors.general != null) {
                                 Card(
                                     modifier = Modifier
@@ -271,18 +270,18 @@ fun AddFranquiciatarioScreen(
                             )
                         }
 
-                        FranchiseeFormStep.ADDRESS_INFO -> AddressInfoStep(
+                        BranchStaffFormStep.ADDRESS_INFO -> AddressInfoStep(
                             data = state.data,
                             errors = state.errors,
                             onDataChange = { state.updateData(it) }
                         )
 
-                        FranchiseeFormStep.ADDITIONAL_INFO -> AdditionalInfoStep(
+                        BranchStaffFormStep.ADDITIONAL_INFO -> AdditionalInfoStep(
                             data = state.data,
                             onDataChange = { state.updateData(it) }
                         )
 
-                        FranchiseeFormStep.CONFIRMATION -> ConfirmationStep(
+                        BranchStaffFormStep.CONFIRMATION -> ConfirmationStep(
                             data = state.data,
                             errors = state.errors
                         )
@@ -298,7 +297,6 @@ fun AddFranquiciatarioScreen(
                             state.nextStep()
                         },
                         onSubmit = {
-
                             if (selectedFranchiseId == 0L) {
                                 state.errors = state.errors.copy(
                                     general = "Debes seleccionar una unidad antes de registrar."
@@ -343,20 +341,22 @@ fun AddFranquiciatarioScreen(
                                         username = state.data.username,
                                         password = state.data.password,
                                         roleId = selectedRoleId ?: 0L,
-                                        active = if (state.data.active) 1L else 0L
+                                        active = if (state.data.active) 1L else 0L,
+                                        avatarId = state.data.avatarId
                                     )
 
-                                    println("✓ Franquiciatario registrado exitosamente")
+                                    println("✓ Personal de Sucursal registrado exitosamente")
                                     println("  - Usuario: ${state.data.username}")
                                     println("  - Franquicia: $selectedFranchise (ID: $selectedFranchiseId)")
                                     println("  - Rol ID: $selectedRoleId")
+                                    println("  - Avatar ID: ${state.data.avatarId}")
 
                                     onDismiss()
                                 } catch (e: Exception) {
                                     state.errors = state.errors.copy(
                                         general = "Error al guardar los datos: ${e.message}"
                                     )
-                                    println("✗ Error al registrar franquiciatario: ${e.message}")
+                                    println("✗ Error al registrar personal de sucursal: ${e.message}")
                                 }
                             } else {
                                 state.errors = state.errors.copy(

@@ -396,7 +396,8 @@ CREATE TABLE TeacherEntity (
     salary_per_hour REAL,
     start_date TEXT,
     active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
-    vetoed INTEGER NOT NULL DEFAULT 0 CHECK(vetoed IN (0, 1))
+    vetoed INTEGER NOT NULL DEFAULT 0 CHECK(vetoed IN (0, 1)),
+    avatar_id TEXT DEFAULT 'avatar_01'
 );
 
 teacherCreate:
@@ -439,12 +440,13 @@ CREATE TABLE FranchiseeEntity (
     emergency_contact_phone TEXT,
     start_date TEXT,
     active INTEGER NOT NULL DEFAULT 1,
+    avatar_id TEXT DEFAULT 'avatar_01',
     FOREIGN KEY(franchise_id) REFERENCES FranchiseEntity(id)
 );
 
 franchiseeCreate:
-INSERT INTO FranchiseeEntity (franchise_id, first_name, last_name_paternal, last_name_maternal, gender, birth_date, nationality, tax_id, phone, email, address_street, address_zip, emergency_contact_name, emergency_contact_phone, start_date, active)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO FranchiseeEntity (franchise_id, first_name, last_name_paternal, last_name_maternal, gender, birth_date, nationality, tax_id, phone, email, address_street, address_zip, emergency_contact_name, emergency_contact_phone, start_date, active, avatar_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 franchiseeSelectAll:
 SELECT * FROM FranchiseeEntity;
@@ -457,7 +459,7 @@ SELECT * FROM FranchiseeEntity WHERE franchise_id = ?;
 
 franchiseeUpdate:
 UPDATE FranchiseeEntity
-SET franchise_id = ?, first_name = ?, last_name_paternal = ?, last_name_maternal = ?, gender = ?, birth_date = ?, nationality = ?, tax_id = ?, phone = ?, email = ?, address_street = ?, address_zip = ?, emergency_contact_name = ?, emergency_contact_phone = ?, start_date = ?, active = ?
+SET franchise_id = ?, first_name = ?, last_name_paternal = ?, last_name_maternal = ?, gender = ?, birth_date = ?, nationality = ?, tax_id = ?, phone = ?, email = ?, address_street = ?, address_zip = ?, emergency_contact_name = ?, emergency_contact_phone = ?, start_date = ?, active = ?, avatar_id = ?
 WHERE id = ?;
 
 franchiseeDelete:
@@ -550,6 +552,7 @@ CREATE TABLE StudentEntity (
     blood_type TEXT,
     chronic_disease TEXT,
     active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0, 1)),
+    avatar_id TEXT DEFAULT 'avatar_01',
     FOREIGN KEY(franchise_id) REFERENCES FranchiseEntity(id)
 );
 
@@ -910,6 +913,7 @@ CREATE TABLE AdministrativeEntity (
     salary REAL NOT NULL,
     start_date TEXT NOT NULL,
     active INTEGER NOT NULL DEFAULT 1,
+    avatar_id TEXT DEFAULT 'avatar_01',
     FOREIGN KEY(franchise_id) REFERENCES FranchiseEntity(id)
 );
 
@@ -1200,6 +1204,30 @@ SELECT DISTINCT
 FROM UserRoleEntity ur
 JOIN RolePermissionEntity rp ON ur.role_id = rp.role_id
 WHERE ur.user_id = ? AND ur.franchise_id = ?;
+
+-- Actualizar avatar de estudiante
+studentUpdateAvatar:
+UPDATE StudentEntity
+SET avatar_id = ?
+WHERE id = ?;
+
+-- Actualizar avatar de profesor
+teacherUpdateAvatar:
+UPDATE TeacherEntity
+SET avatar_id = ?
+WHERE id = ?;
+
+-- Actualizar avatar de franquiciado
+franchiseeUpdateAvatar:
+UPDATE FranchiseeEntity
+SET avatar_id = ?
+WHERE id = ?;
+
+-- Actualizar avatar de administrativo
+administrativeUpdateAvatar:
+UPDATE AdministrativeEntity
+SET avatar_id = ?
+WHERE id = ?;
 
 -- Búsquedas frecuentes por CURP
 CREATE INDEX IF NOT EXISTS idx_student_curp ON StudentEntity(curp);
