@@ -3,6 +3,7 @@ package org.example.appbbmges.ui.settings.registationex.formularionewsucursales
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -15,11 +16,21 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.example.appbbmges.PrecioBaseEntity
 import org.example.appbbmges.ui.usuarios.AppColors
+
+private fun formatPrice(price: Double): String {
+    val cents = (price * 100).toLong()
+    val dollars = cents / 100
+    val centsRemainder = cents % 100
+    return "$${dollars}.${centsRemainder.toString().padStart(2, '0')}"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,45 +114,29 @@ fun PersonalInfoStep(
     }
 }
 
-/**
- * Componente para el paso de información de precios
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailInfoStep(
-    basePrice: String,
+    precioBaseId: Long?,
+    preciosBase: List<PrecioBaseEntity>,
+    expandedPreciosBase: Boolean,
     currency: String,
     validationResult: SucursalValidationResult,
-    onBasePriceChange: (String) -> Unit,
+    onPrecioBaseSelected: (Long) -> Unit,
+    onExpandedPreciosBaseChange: (Boolean) -> Unit,
     onCurrencyChange: (String) -> Unit,
     focusManager: FocusManager
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedTextField(
-            value = basePrice,
-            onValueChange = { value ->
-                if (value.isEmpty() || value.matches(Regex("^\\d*\\.?\\d*\$"))) {
-                    onBasePriceChange(value)
-                }
-            },
-            label = { Text("Precio base *") },
+
+        PrecioBaseDropdown(
+            selectedPrecioBaseId = precioBaseId,
+            preciosBase = preciosBase,
+            expanded = expandedPreciosBase,
+            onPrecioBaseSelected = onPrecioBaseSelected,
+            onExpandedChange = onExpandedPreciosBaseChange,
             isError = validationResult.basePriceError != null,
-            supportingText = {
-                validationResult.basePriceError?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Decimal,
-                imeAction = ImeAction.Next
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-            ),
-            leadingIcon = { Text("$") },
-            placeholder = { Text("1500.00") }
+            errorMessage = validationResult.basePriceError
         )
 
         OutlinedTextField(
@@ -170,9 +165,127 @@ fun DetailInfoStep(
     }
 }
 
-/**
- * Componente para el paso de información de dirección
- */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PrecioBaseDropdown(
+    selectedPrecioBaseId: Long?,
+    preciosBase: List<PrecioBaseEntity>,
+    expanded: Boolean,
+    onPrecioBaseSelected: (Long) -> Unit,
+    onExpandedChange: (Boolean) -> Unit,
+    isError: Boolean,
+    errorMessage: String?
+) {
+    val selectedPrecio = preciosBase.find { it.id == selectedPrecioBaseId }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = onExpandedChange
+    ) {
+        OutlinedTextField(
+            value = selectedPrecio?.let { formatPrice(it.precio) } ?: "",
+            onValueChange = {},
+            label = { Text("Precio base *") },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(),
+            singleLine = true,
+            readOnly = true,
+            isError = isError,
+            supportingText = {
+                errorMessage?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error)
+                }
+            },
+            trailingIcon = {
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+            },
+            placeholder = { Text("Selecciona un precio base") },
+            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+        )
+
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { onExpandedChange(false) },
+            modifier = Modifier.exposedDropdownSize()
+        ) {
+            if (preciosBase.isEmpty()) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            "No hay precios base registrados",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    },
+                    onClick = { },
+                    enabled = false
+                )
+            } else {
+                preciosBase.forEachIndexed { index, precio ->
+                    DropdownMenuItem(
+                        text = {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (selectedPrecioBaseId == precio.id) {
+                                        AppColors.Primary.copy(alpha = 0.1f)
+                                    } else {
+                                        Color.Transparent
+                                    }
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            "Precio Base ${index + 1}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Medium,
+                                            color = if (selectedPrecioBaseId == precio.id) {
+                                                AppColors.Primary
+                                            } else {
+                                                Color.Black
+                                            }
+                                        )
+                                    }
+
+                                    Text(
+                                        formatPrice(precio.precio),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = AppColors.Primary
+                                    )
+                                }
+                            }
+                        },
+                        onClick = {
+                            onPrecioBaseSelected(precio.id)
+                            onExpandedChange(false)
+                        }
+                    )
+
+                    if (index < preciosBase.size - 1) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                            thickness = 1.dp,
+                            color = Color.LightGray.copy(alpha = 0.3f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddressInfoStep(
@@ -304,9 +417,6 @@ fun AddressInfoStep(
     }
 }
 
-/**
- * Componente para el paso de información adicional
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdditionalInfoStep(
@@ -369,9 +479,6 @@ fun AdditionalInfoStep(
     }
 }
 
-/**
- * Componente de configuración (switches)
- */
 @Composable
 private fun ConfigurationCard(
     isNew: Boolean,
@@ -404,9 +511,6 @@ private fun ConfigurationCard(
     }
 }
 
-/**
- * Componente de switch de configuración
- */
 @Composable
 private fun ConfigurationSwitch(
     title: String,
@@ -438,9 +542,6 @@ private fun ConfigurationSwitch(
     }
 }
 
-/**
- * Componente dropdown para selección de zona
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ZoneDropdown(
@@ -490,14 +591,16 @@ private fun ZoneDropdown(
     }
 }
 
-/**
- * Paso de confirmación con toda la información
- */
 @Composable
 fun ConfirmationStep(
     formData: SucursalFormData,
-    formState: SucursalFormState
+    formState: SucursalFormState,
+    preciosBase: List<PrecioBaseEntity> = emptyList()
 ) {
+    val selectedPrecioBase = formData.precioBaseId?.let { id ->
+        preciosBase.find { it.id == id }
+    }
+
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.heightIn(max = 400.dp)
@@ -521,12 +624,14 @@ fun ConfirmationStep(
             )
         }
 
-        if (formData.basePrice.isNotEmpty() || formData.currency.isNotEmpty()) {
+        if (selectedPrecioBase != null || formData.currency.isNotEmpty()) {
             item {
                 ConfirmationSection(
                     title = "Información de Precios",
                     fields = buildList {
-                        if (formData.basePrice.isNotEmpty()) add("Precio base" to "$${formData.basePrice}")
+                        if (selectedPrecioBase != null) {
+                            add("Precio base" to formatPrice(selectedPrecioBase.precio))
+                        }
                         if (formData.currency.isNotEmpty()) add("Moneda" to formData.currency)
                     }
                 )
@@ -573,9 +678,6 @@ fun ConfirmationStep(
     }
 }
 
-/**
- * Sección de confirmación reutilizable
- */
 @Composable
 private fun ConfirmationSection(
     title: String,
@@ -602,9 +704,6 @@ private fun ConfirmationSection(
     }
 }
 
-/**
- * Campo de confirmación individual
- */
 @Composable
 private fun ConfirmationField(label: String, value: String) {
     Row(
@@ -625,9 +724,6 @@ private fun ConfirmationField(label: String, value: String) {
     }
 }
 
-/**
- * Card de error reutilizable
- */
 @Composable
 private fun ErrorCard(formState: SucursalFormState.Error) {
     Card(
@@ -658,8 +754,6 @@ private fun ErrorCard(formState: SucursalFormState.Error) {
         }
     }
 }
-
-// Funciones auxiliares para la confirmación
 
 private fun hasAddressInfo(formData: SucursalFormData): Boolean {
     return formData.addressStreet.isNotEmpty() ||

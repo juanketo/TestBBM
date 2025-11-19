@@ -124,10 +124,13 @@ private fun FormContent(
 
         SucursalFormStep.DETAIL_INFO -> {
             DetailInfoStep(
-                basePrice = formManager.getEffectiveBasePrice(),
+                precioBaseId = formManager.formData.precioBaseId,
+                preciosBase = formManager.preciosBase,
+                expandedPreciosBase = formManager.expandedPreciosBase,
                 currency = formManager.formData.currency,
                 validationResult = formManager.validationResult,
-                onBasePriceChange = formManager::updateBasePrice,
+                onPrecioBaseSelected = formManager::updatePrecioBase,
+                onExpandedPreciosBaseChange = formManager::updateExpandedPreciosBase,
                 onCurrencyChange = formManager::updateCurrency,
                 focusManager = focusManager
             )
@@ -174,7 +177,8 @@ private fun FormContent(
         SucursalFormStep.CONFIRMATION -> {
             ConfirmationStep(
                 formData = formManager.formData,
-                formState = formManager.formState
+                formState = formManager.formState,
+                preciosBase = formManager.preciosBase
             )
         }
     }

@@ -31,7 +31,7 @@ data class SucursalFormData(
     val name: String = "",
     val email: String = "",
     val phone: String = "",
-    val basePrice: String = "",
+    val precioBaseId: Long? = null,
     val currency: String = "MXN",
     val addressStreet: String = "",
     val addressNumber: String = "",

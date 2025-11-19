@@ -1,4 +1,5 @@
 package org.example.appbbmges.ui.settings.registationex.formularionewsucursales
+
 object TextUtils {
     fun capitalizeText(text: String): String {
         return text.split(" ").joinToString(" ") { word ->
@@ -26,8 +27,12 @@ object SucursalValidator {
         )
     }
 
-    fun validateDetailInfo(basePrice: String, currency: String): SucursalValidationResult {
-        val basePriceError = validateBasePrice(basePrice)
+    // CAMBIO: Ahora valida que se haya seleccionado un precio base (Long?) en lugar de validar el formato de un String
+    fun validateDetailInfo(precioBaseId: Long?, currency: String): SucursalValidationResult {
+        val basePriceError = if (precioBaseId == null) {
+            "Debe seleccionar un precio base"
+        } else null
+
         val currencyError = validateCurrency(currency)
 
         return SucursalValidationResult(
@@ -59,6 +64,7 @@ object SucursalValidator {
             taxIdError = taxIdError
         )
     }
+
     private fun validateName(name: String, fieldName: String, required: Boolean): String? {
         if (required && name.isBlank()) return "El $fieldName es obligatorio."
         if (name.isNotBlank()) {
@@ -101,18 +107,7 @@ object SucursalValidator {
         }
     }
 
-    private fun validateBasePrice(basePrice: String): String? {
-        if (basePrice.isEmpty()) return null
-
-        val price = basePrice.toDoubleOrNull()
-        return when {
-            price == null -> "El precio base debe ser un número válido (ejemplo: 1500.00)."
-            price < 0 -> "El precio no puede ser negativo."
-            price > 999999.99 -> "El precio es demasiado alto (máximo: $999,999.99)."
-            basePrice.contains(",") -> "Use punto (.) para decimales, no coma (,)."
-            else -> null
-        }
-    }
+    // ELIMINADO: validateBasePrice ya no se necesita porque ahora validamos el ID seleccionado
 
     private fun validateCurrency(currency: String): String? {
         if (currency.isEmpty()) return null

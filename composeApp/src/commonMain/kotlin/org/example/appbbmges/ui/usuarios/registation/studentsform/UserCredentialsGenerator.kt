@@ -7,17 +7,33 @@ import kotlin.random.Random
 
 object UserCredentialsGenerator {
 
+    fun generateBranchCode(franchiseName: String): String {
+        if (franchiseName.isBlank()) return "HUE"
+
+        val cleaned = franchiseName.trim()
+            .uppercase()
+            .filter { it.isLetter() }
+
+        return when {
+            cleaned.length >= 3 -> cleaned.take(3)
+            cleaned.length == 2 -> cleaned + "X"
+            cleaned.length == 1 -> cleaned + "XX"
+            else -> "HUE"
+        }
+    }
+
     fun generateUsername(
         firstName: String,
         lastNamePaternal: String,
         lastNameMaternal: String,
-        companyAcronym: String = "BBM",
-        branchCode: String = "HUE"
+        franchiseName: String,
+        companyAcronym: String = "BBM"
     ): String {
         if (firstName.isBlank() || lastNamePaternal.isBlank() || lastNameMaternal.isBlank()) {
             return ""
         }
 
+        val branchCode = generateBranchCode(franchiseName)
         val firstLetterPaternal = lastNamePaternal.first().uppercaseChar()
         val firstLetterMaternal = lastNameMaternal.first().uppercaseChar()
         val firstTwoLettersName = firstName.take(2).uppercase()

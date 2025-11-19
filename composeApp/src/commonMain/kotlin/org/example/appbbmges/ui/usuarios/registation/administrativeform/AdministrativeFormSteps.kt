@@ -1,9 +1,7 @@
-package org.example.appbbmges.ui.usuarios.registation.studentsform
+package org.example.appbbmges.ui.usuarios.registation.administrativeform
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -11,40 +9,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import org.example.appbbmges.ui.usuarios.registation.studentsform.CustomCountryCodeDropdown
+import org.example.appbbmges.ui.usuarios.registation.studentsform.CustomDateSelectorField
+import org.example.appbbmges.ui.usuarios.registation.studentsform.CustomDropdownField
+import org.example.appbbmges.ui.usuarios.registation.studentsform.CustomOutlinedTextField
 
 @Composable
 fun PersonalInfoStep(
-    data: StudentFormData,
-    errors: FormErrors,
-    selectedFranchiseName: String,
-    onDataChange: (StudentFormData) -> Unit
+    data: AdministrativeFormData,
+    errors: AdministrativeFormErrors,
+    onDataChange: (AdministrativeFormData) -> Unit
 ) {
-    var curpEdited by remember { mutableStateOf(false) }
-
-    LaunchedEffect(data.firstName, data.lastNamePaternal, data.lastNameMaternal, data.birthDate, data.gender) {
-        if (!curpEdited && data.firstName.isNotEmpty() && data.lastNamePaternal.isNotEmpty() &&
-            data.birthDate.isNotEmpty() && data.gender.isNotEmpty() && data.curp.isEmpty()
-        ) {
-            val generatedCurp = CURPGenerator.generate(
-                data.firstName, data.lastNamePaternal, data.lastNameMaternal, data.birthDate, data.gender
-            )
-            onDataChange(data.copy(curp = generatedCurp))
-        }
-    }
-
-    LaunchedEffect(data.firstName, data.lastNamePaternal, data.lastNameMaternal, selectedFranchiseName) {
-        if (data.firstName.isNotEmpty() && data.lastNamePaternal.isNotEmpty() &&
-            data.lastNameMaternal.isNotEmpty() && selectedFranchiseName.isNotEmpty()) {
-            val generatedUsername = UserCredentialsGenerator.generateUsername(
-                data.firstName, data.lastNamePaternal, data.lastNameMaternal, selectedFranchiseName
-            )
-            val generatedPassword = UserCredentialsGenerator.generatePassword(
-                data.firstName, data.lastNamePaternal, data.lastNameMaternal
-            )
-            onDataChange(data.copy(username = generatedUsername, password = generatedPassword))
-        }
-    }
-
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
         Row(
@@ -94,7 +69,7 @@ fun PersonalInfoStep(
                 value = data.gender,
                 onValueChange = { onDataChange(data.copy(gender = it)) },
                 label = "Género",
-                options = FormConstants.genderOptions,
+                options = AdministrativeFormConstants.genderOptions,
                 placeholder = "Seleccione su género",
                 modifier = Modifier.weight(1f)
             )
@@ -116,7 +91,7 @@ fun PersonalInfoStep(
                 value = data.nationality,
                 onValueChange = { onDataChange(data.copy(nationality = it)) },
                 label = "Nacionalidad",
-                options = FormConstants.nationalityOptions,
+                options = AdministrativeFormConstants.nationalityOptions,
                 placeholder = "Seleccione nacionalidad",
                 modifier = Modifier.weight(1f)
             )
@@ -139,7 +114,7 @@ fun PersonalInfoStep(
             CustomCountryCodeDropdown(
                 selectedCode = data.countryCode,
                 onCodeSelected = { onDataChange(data.copy(countryCode = it)) },
-                options = FormConstants.countryCodeOptions,
+                options = AdministrativeFormConstants.countryCodeOptions,
                 modifier = Modifier.width(120.dp)
             )
             CustomOutlinedTextField(
@@ -155,31 +130,6 @@ fun PersonalInfoStep(
                 errorMessage = errors.phone,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 maxLength = 10
-            )
-            CustomOutlinedTextField(
-                value = data.curp,
-                onValueChange = {
-                    curpEdited = true
-                    onDataChange(data.copy(curp = it.uppercase().take(18)))
-                },
-                label = "CURP",
-                placeholder = "ABCD123456HDFX01",
-                modifier = Modifier.weight(1f),
-                isError = errors.curp != null,
-                errorMessage = errors.curp,
-                maxLength = 18,
-                trailingIcon = {
-                    IconButton(onClick = {
-                        curpEdited = false
-                        val generatedCurp = CURPGenerator.generate(
-                            data.firstName, data.lastNamePaternal, data.lastNameMaternal,
-                            data.birthDate, data.gender
-                        )
-                        onDataChange(data.copy(curp = generatedCurp))
-                    }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Regenerar CURP")
-                    }
-                }
             )
         }
 
@@ -217,10 +167,79 @@ fun PersonalInfoStep(
 }
 
 @Composable
+fun ProfessionalInfoStep(
+    data: AdministrativeFormData,
+    errors: AdministrativeFormErrors,
+    onDataChange: (AdministrativeFormData) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CustomOutlinedTextField(
+                value = data.taxId,
+                onValueChange = {
+                    val filtered = it.uppercase().filter { char -> char.isLetterOrDigit() }.take(13)
+                    onDataChange(data.copy(taxId = filtered))
+                },
+                label = "RFC",
+                placeholder = "ABCD123456XYZ (opcional)",
+                modifier = Modifier.weight(1f),
+                isError = errors.taxId != null,
+                errorMessage = errors.taxId,
+                maxLength = 13
+            )
+            CustomOutlinedTextField(
+                value = data.nss,
+                onValueChange = {
+                    val filtered = it.filter { char -> char.isDigit() }.take(11)
+                    onDataChange(data.copy(nss = filtered))
+                },
+                label = "NSS",
+                placeholder = "12345678901 (opcional)",
+                modifier = Modifier.weight(1f),
+                isError = errors.nss != null,
+                errorMessage = errors.nss,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                maxLength = 11
+            )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CustomOutlinedTextField(
+                value = data.salary,
+                onValueChange = {
+                    val filtered = it.filter { char -> char.isDigit() || char == '.' }
+                    onDataChange(data.copy(salary = filtered))
+                },
+                label = "Salario Mensual",
+                placeholder = "15000.00",
+                modifier = Modifier.weight(1f),
+                isError = errors.salary != null,
+                errorMessage = errors.salary,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+            )
+            CustomDateSelectorField(
+                value = data.startDate,
+                onDateSelected = { onDataChange(data.copy(startDate = it)) },
+                label = "Fecha de Inicio",
+                modifier = Modifier.weight(1f),
+                isError = errors.startDate != null,
+                errorMessage = errors.startDate
+            )
+        }
+    }
+}
+
+@Composable
 fun AddressInfoStep(
-    data: StudentFormData,
-    errors: FormErrors,
-    onDataChange: (StudentFormData) -> Unit
+    data: AdministrativeFormData,
+    errors: AdministrativeFormErrors,
+    onDataChange: (AdministrativeFormData) -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -254,8 +273,8 @@ fun AddressInfoStep(
 
 @Composable
 fun AdditionalInfoStep(
-    data: StudentFormData,
-    onDataChange: (StudentFormData) -> Unit
+    data: AdministrativeFormData,
+    onDataChange: (AdministrativeFormData) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
@@ -263,37 +282,25 @@ fun AdditionalInfoStep(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             CustomOutlinedTextField(
-                value = data.parentFatherName,
-                onValueChange = { onDataChange(data.copy(parentFatherName = TextFormatters.cleanAndFormatNameInput(it))) },
-                label = "Nombre del Padre",
+                value = data.emergencyContactName,
+                onValueChange = {
+                    onDataChange(data.copy(emergencyContactName = TextFormatters.cleanAndFormatNameInput(it)))
+                },
+                label = "Nombre del Contacto de Emergencia",
                 placeholder = "Opcional",
                 modifier = Modifier.weight(1f)
             )
             CustomOutlinedTextField(
-                value = data.parentMotherName,
-                onValueChange = { onDataChange(data.copy(parentMotherName = TextFormatters.cleanAndFormatNameInput(it))) },
-                label = "Nombre de la Madre",
-                placeholder = "Opcional",
-                modifier = Modifier.weight(1f)
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            CustomOutlinedTextField(
-                value = data.bloodType,
-                onValueChange = { onDataChange(data.copy(bloodType = it)) },
-                label = "Tipo de Sangre",
-                placeholder = "Ej. O+",
-                modifier = Modifier.weight(1f)
-            )
-            CustomOutlinedTextField(
-                value = data.chronicDisease,
-                onValueChange = { onDataChange(data.copy(chronicDisease = it)) },
-                label = "Enfermedad Crónica",
-                placeholder = "Opcional",
-                modifier = Modifier.weight(1f)
+                value = data.emergencyContactPhone,
+                onValueChange = {
+                    val filtered = it.filter { char -> char.isDigit() }.take(10)
+                    onDataChange(data.copy(emergencyContactPhone = filtered))
+                },
+                label = "Teléfono de Emergencia",
+                placeholder = "1234567890",
+                modifier = Modifier.weight(1f),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                maxLength = 10
             )
         }
     }
@@ -301,8 +308,9 @@ fun AdditionalInfoStep(
 
 @Composable
 fun ConfirmationStep(
-    data: StudentFormData,
-    errors: FormErrors,
+    data: AdministrativeFormData,
+    errors: AdministrativeFormErrors,
+    selectedArea: String,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -322,19 +330,24 @@ fun ConfirmationStep(
             if (data.lastNameMaternal.isNotEmpty()) Text("Apellido Materno: ${data.lastNameMaternal}")
             if (data.gender.isNotEmpty()) Text("Género: ${data.gender}")
             if (data.birthDate.isNotEmpty()) {
-                val displayDate = DateUtils.convertToDisplayFormat(data.birthDate)
+                val displayDate = AdministrativeFormUtils.convertToDisplayFormat(data.birthDate)
                 Text("Fecha de Nacimiento: $displayDate")
             }
             if (data.nationality.isNotEmpty()) Text("Nacionalidad: ${data.nationality}")
-            if (data.curp.isNotEmpty()) Text("CURP: ${data.curp}")
+            if (data.taxId.isNotEmpty()) Text("RFC: ${data.taxId}")
+            if (data.nss.isNotEmpty()) Text("NSS: ${data.nss}")
             if (data.phone.isNotEmpty()) Text("Teléfono: ${data.countryCode} ${data.phone}")
             if (data.email.isNotEmpty()) Text("Email: ${data.email}")
             if (data.addressStreet.isNotEmpty()) Text("Calle: ${data.addressStreet}")
             if (data.addressZip.isNotEmpty()) Text("Código Postal: ${data.addressZip}")
-            if (data.parentFatherName.isNotEmpty()) Text("Nombre del Padre: ${data.parentFatherName}")
-            if (data.parentMotherName.isNotEmpty()) Text("Nombre de la Madre: ${data.parentMotherName}")
-            if (data.bloodType.isNotEmpty()) Text("Tipo de Sangre: ${data.bloodType}")
-            if (data.chronicDisease.isNotEmpty()) Text("Enfermedad Crónica: ${data.chronicDisease}")
+            if (data.emergencyContactName.isNotEmpty()) Text("Contacto de Emergencia: ${data.emergencyContactName}")
+            if (data.emergencyContactPhone.isNotEmpty()) Text("Teléfono de Emergencia: ${data.emergencyContactPhone}")
+            if (selectedArea.isNotEmpty()) Text("Área Corporativa: $selectedArea")
+            if (data.salary.isNotEmpty()) Text("Salario: $${data.salary}")
+            if (data.startDate.isNotEmpty()) {
+                val displayDate = AdministrativeFormUtils.convertToDisplayFormat(data.startDate)
+                Text("Fecha de Inicio: $displayDate")
+            }
             Text("Estado: ${if (data.active) "Activo" else "Inactivo"}")
 
             if (errors.general != null) {

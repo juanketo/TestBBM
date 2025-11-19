@@ -32,15 +32,62 @@ import kotlin.math.roundToInt
 fun FranquiciasScreen(navController: SimpleNavController, repository: Repository) {
     var franquicias by remember { mutableStateOf<List<FranchiseEntity>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var franchiseToDelete by remember { mutableStateOf<FranchiseEntity?>(null) }
 
     LaunchedEffect(Unit) {
         try {
             franquicias = repository.getAllFranchises()
         } catch (e: Exception) {
             println("Error cargando franquicias: ${e.message}")
+            errorMessage = "Error al cargar las franquicias"
         } finally {
             isLoading = false
         }
+    }
+
+    // Diálogo de confirmación para eliminar
+    if (showDeleteDialog && franchiseToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Confirmar eliminación") },
+            text = {
+                Text("¿Estás seguro de que deseas eliminar la franquicia '${franchiseToDelete?.name}'? Esta acción no se puede deshacer.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        franchiseToDelete?.let { franchise ->
+                            try {
+                                repository.deleteFranchise(franchise.id)
+                                franquicias = repository.getAllFranchises()
+                                errorMessage = null
+                            } catch (e: Exception) {
+                                println("Error eliminando franquicia: ${e.message}")
+                                errorMessage = when {
+                                    e.message?.contains("FOREIGN KEY", ignoreCase = true) == true ->
+                                        "No se puede eliminar: la franquicia tiene datos relacionados (usuarios, estudiantes, etc.)"
+                                    else -> "Error al eliminar la franquicia: ${e.message}"
+                                }
+                            }
+                        }
+                        showDeleteDialog = false
+                        franchiseToDelete = null
+                    }
+                ) {
+                    Text("Eliminar", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    franchiseToDelete = null
+                }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 
     Column(
@@ -90,6 +137,35 @@ fun FranquiciasScreen(navController: SimpleNavController, repository: Repository
             }
         }
 
+        // Mostrar mensaje de error si existe
+        errorMessage?.let { message ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFFFEBEE)
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFD32F2F)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = message,
+                        color = Color(0xFFD32F2F),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+
         // Contenido principal con Grid 2x2
         Box(
             modifier = Modifier
@@ -101,7 +177,6 @@ fun FranquiciasScreen(navController: SimpleNavController, repository: Repository
             } else if (franquicias.isEmpty()) {
                 EmptyState()
             } else {
-                // Grid 2x2 para mostrar las tarjetas
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -111,17 +186,13 @@ fun FranquiciasScreen(navController: SimpleNavController, repository: Repository
                     items(franquicias) { franquicia ->
                         CompactFranquiciaCard(
                             franquicia = franquicia,
+                            repository = repository,
                             onEditClick = {
+                                // TODO: Implementar edición
                             },
                             onDeleteClick = {
-                                // Eliminar franquicia
-                                try {
-                                    repository.deleteFranchise(franquicia.id)
-                                    // Actualizar lista
-                                    franquicias = repository.getAllFranchises()
-                                } catch (e: Exception) {
-                                    println("Error eliminando franquicia: ${e.message}")
-                                }
+                                franchiseToDelete = franquicia
+                                showDeleteDialog = true
                             }
                         )
                     }
@@ -198,9 +269,20 @@ private fun EmptyState() {
 @Composable
 fun CompactFranquiciaCard(
     franquicia: FranchiseEntity,
+    repository: Repository,
     onEditClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {}
 ) {
+    // Obtener el precio base si existe
+    val precioBase = remember(franquicia.precio_base_id) {
+        franquicia.precio_base_id?.let { id ->
+            try {
+                repository.getPrecioBaseById(id)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -230,7 +312,6 @@ fun CompactFranquiciaCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top
                 ) {
-                    // Sección del título con línea decorativa
                     Column(
                         modifier = Modifier.weight(1f)
                     ) {
@@ -246,7 +327,6 @@ fun CompactFranquiciaCard(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        // Línea decorativa debajo del título
                         Box(
                             modifier = Modifier
                                 .width(60.dp)
@@ -258,7 +338,6 @@ fun CompactFranquiciaCard(
                         )
                     }
 
-                    // Icono del edificio mejorado
                     Surface(
                         modifier = Modifier.size(50.dp),
                         shape = RoundedCornerShape(8.dp),
@@ -359,10 +438,10 @@ fun CompactFranquiciaCard(
                     Spacer(modifier = Modifier.width(8.dp))
                     Column {
                         CompactInfoSection(title = "Información Comercial:") {
-                            franquicia.base_price?.let { price ->
+                            precioBase?.let { precio ->
                                 CompactInfoItem(
                                     label = "Precio Base",
-                                    value = "${franquicia.currency ?: "MXN"} ${formatDouble(price)}"
+                                    value = "${franquicia.currency ?: "MXN"} ${formatDouble(precio.precio)}"
                                 )
                             }
                             franquicia.zone?.let { zone ->
@@ -403,22 +482,20 @@ fun CompactFranquiciaCard(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Botones de acción - NUEVO DISEÑO
+            // Botones de acción
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Botón Editar
                 Button(
                     onClick = onEditClick,
                     modifier = Modifier
                         .weight(1f)
                         .height(40.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFCC80),
-                        disabledContainerColor = Color(0xFFFFCC80).copy(alpha = 0.6f)
+                        containerColor = Color(0xFFFFCC80)
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -436,15 +513,13 @@ fun CompactFranquiciaCard(
                     )
                 }
 
-                // Botón Eliminar
                 Button(
                     onClick = onDeleteClick,
                     modifier = Modifier
                         .weight(1f)
                         .height(40.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFFAB91), // ROJO PASTEL
-                        disabledContainerColor = Color(0xFFFFAB91).copy(alpha = 0.6f)
+                        containerColor = Color(0xFFFFAB91)
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -499,7 +574,6 @@ fun CompactInfoItem(
     )
 }
 
-// Función multiplataforma para formatear números con 2 decimales
 private fun formatDouble(value: Double): String {
     val rounded = (value * 100).roundToInt()
     val integerPart = rounded / 100
@@ -513,7 +587,6 @@ private fun formatDouble(value: Double): String {
     }
 }
 
-// Funciones auxiliares
 private fun hasAddressInfo(franquicia: FranchiseEntity): Boolean {
     return franquicia.address_street != null ||
             franquicia.address_number != null ||

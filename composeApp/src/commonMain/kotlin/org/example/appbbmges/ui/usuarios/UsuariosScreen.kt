@@ -32,7 +32,6 @@ import org.example.appbbmges.navigation.SimpleNavController
 import org.example.appbbmges.ui.sessions.SessionManager
 import org.example.appbbmges.ui.usuarios.registation.administrativeform.AddAdministrativoScreen
 import org.example.appbbmges.ui.usuarios.registation.studentsform.AddAlumnoScreen
-import org.example.appbbmges.ui.usuarios.registation.AddProfesorScreen
 import org.example.appbbmges.ui.usuarios.registation.branchstaffform.AddBranchStaffScreen
 import org.example.appbbmges.ui.usuarios.viewusuarios.ViewAdministrativoScreen
 import org.example.appbbmges.ui.usuarios.viewusuarios.ViewAlumnoScreen
@@ -201,7 +200,7 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                     onDismissRequest = { expandedAdd = false },
                     modifier = Modifier.align(Alignment.BottomEnd)
                 ) {
-                    listOf("Alumno", "Profesor", "Personal Sucursal", "Administrativo").forEach { userType ->
+                    listOf("Alumno", "Personal Sucursal", "Administrativo").forEach { userType ->
                         DropdownMenuItem(
                             text = { Text("Agregar $userType") },
                             onClick = {
@@ -229,20 +228,6 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                                     repository.getAllStudents()
                                 } else {
                                     repository.getStudentsByFranchiseId(currentUserFranchiseId)
-                                }
-                            },
-                            repository = repository
-                        )
-                        "Profesor" -> AddProfesorScreen(
-                            onDismiss = {
-                                selectedUserType = null
-                                teachers.value = if (canViewAllFranchises) {
-                                    repository.getAllTeachers()
-                                } else {
-                                    repository.getAllTeachers().filter { teacher ->
-                                        repository.getFranchiseTeachersByFranchiseId(currentUserFranchiseId)
-                                            .any { it.teacher_id == teacher.id }
-                                    }
                                 }
                             },
                             repository = repository
@@ -388,7 +373,7 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                                     ) {
                                         Checkbox(
                                             checked = false,
-                                            onCheckedChange = { /* TODO */ },
+                                            onCheckedChange = { },
                                             modifier = Modifier.width(48.dp)
                                         )
                                         Text(
@@ -461,7 +446,7 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                                         ) {
                                             Checkbox(
                                                 checked = false,
-                                                onCheckedChange = { /* TODO */ },
+                                                onCheckedChange = { },
                                                 modifier = Modifier.width(48.dp)
                                             )
                                             when (type) {
@@ -743,7 +728,6 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
             }
         }
 
-        // Diálogo de eliminación
         if (showDeleteDialog && userToDelete != null) {
             val (user, type) = userToDelete!!
             val userName = when (user) {

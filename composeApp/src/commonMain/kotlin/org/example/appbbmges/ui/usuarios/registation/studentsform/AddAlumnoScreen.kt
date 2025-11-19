@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import appbbmges.composeapp.generated.resources.Res
 import appbbmges.composeapp.generated.resources.logoSystem
 import org.example.appbbmges.data.Repository
+import org.example.appbbmges.ui.sessions.SessionManager
 import org.example.appbbmges.ui.usuarios.AppColors
 import org.jetbrains.compose.resources.painterResource
 
@@ -28,18 +29,50 @@ fun AddAlumnoScreen(
 ) {
     val state = rememberStudentFormState()
 
-    val currentUserDetails = remember { repository.getCurrentUserWithDetails() }
-    val isAdmin = currentUserDetails?.roleName?.lowercase() in listOf("admin", "administrador")
+    val permissionHelper = SessionManager.permissionHelper
+    val currentUserId = SessionManager.userId ?: 0L
+    val currentUserFranchiseId = SessionManager.franchiseId ?: 0L
 
-    val allFranchises = remember { repository.getAllFranchises() }
+    // Verificar si es Super Admin o tiene permisos para ver todas las franquicias
+    val isSuperAdmin = repository.isSuperAdmin(currentUserId)
+    val canManageAllFranchises = isSuperAdmin ||
+            permissionHelper?.can("FRANQUICIAS_VER") == true
+
+    // Obtener franquicias disponibles
+    val availableFranchises = remember(canManageAllFranchises, currentUserFranchiseId) {
+        if (canManageAllFranchises) {
+            repository.getAllFranchises()
+        } else {
+            listOfNotNull(repository.getFranchiseById(currentUserFranchiseId))
+        }
+    }
+
+    // Obtener TODOS los roles disponibles de la BD
     val allRoles = remember { repository.getAllRoles() }
 
+    // Estados para los dropdowns
     var selectedFranchise by remember {
-        mutableStateOf(if (isAdmin) "" else currentUserDetails?.franchiseName ?: "")
+        mutableStateOf(
+            if (canManageAllFranchises) {
+                ""
+            } else {
+                availableFranchises.firstOrNull()?.name ?: ""
+            }
+        )
     }
+
     var selectedFranchiseId by remember {
-        mutableStateOf(if (isAdmin) 0L else currentUserDetails?.franchiseId ?: 0L)
+        mutableStateOf(
+            if (canManageAllFranchises) {
+                0L
+            } else {
+                currentUserFranchiseId
+            }
+        )
     }
+
+    // Tipo fijo "Alumno"
+    val studentType = FormConstants.STUDENT_TYPE
 
     var selectedRole by remember { mutableStateOf("") }
     var selectedRoleId by remember { mutableStateOf<Long?>(null) }
@@ -61,6 +94,7 @@ fun AddAlumnoScreen(
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
 
+                // Logo de fondo
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -90,14 +124,16 @@ fun AddAlumnoScreen(
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
 
+                    // Fila: Unidad, Tipo y Rol
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        if (isAdmin) {
-                            Box(modifier = Modifier.weight(1f)) {
+                        // 1. Dropdown Unidad
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (canManageAllFranchises) {
                                 var expandedFranchise by remember { mutableStateOf(false) }
 
                                 ExposedDropdownMenuBox(
@@ -127,7 +163,7 @@ fun AddAlumnoScreen(
                                         expanded = expandedFranchise,
                                         onDismissRequest = { expandedFranchise = false }
                                     ) {
-                                        allFranchises.forEach { franchise ->
+                                        availableFranchises.forEach { franchise ->
                                             DropdownMenuItem(
                                                 text = { Text(franchise.name) },
                                                 onClick = {
@@ -139,28 +175,77 @@ fun AddAlumnoScreen(
                                         }
                                     }
                                 }
+                            } else {
+                                CustomOutlinedTextField(
+                                    value = selectedFranchise,
+                                    onValueChange = {},
+                                    label = "Unidad",
+                                    readOnly = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             }
-                        } else {
-                            CustomOutlinedTextField(
-                                value = selectedFranchise,
-                                onValueChange = {},
-                                label = "Unidad",
-                                readOnly = true,
-                                modifier = Modifier.weight(1f)
-                            )
                         }
 
-                        CustomDropdownField(
-                            value = selectedRole,
-                            onValueChange = { roleName ->
-                                selectedRole = roleName
-                                selectedRoleId = allRoles.find { it.name == roleName }?.id
-                            },
-                            label = "Rol",
-                            options = allRoles.map { it.name },
-                            placeholder = "Selecciona un rol",
+                        // 2. Campo Tipo (Fijo: "Alumno")
+                        CustomOutlinedTextField(
+                            value = studentType,
+                            onValueChange = {},
+                            label = "Tipo",
+                            readOnly = true,
                             modifier = Modifier.weight(1f)
                         )
+
+                        // 3. Dropdown Rol
+                        Box(modifier = Modifier.weight(1f)) {
+                            var expandedRole by remember { mutableStateOf(false) }
+
+                            ExposedDropdownMenuBox(
+                                expanded = expandedRole,
+                                onExpandedChange = { expandedRole = it }
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedRole,
+                                    onValueChange = { },
+                                    readOnly = true,
+                                    label = { Text("Rol") },
+                                    placeholder = { Text("Selecciona un rol") },
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedRole)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = AppColors.Primary,
+                                        unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+
+                                ExposedDropdownMenu(
+                                    expanded = expandedRole,
+                                    onDismissRequest = { expandedRole = false }
+                                ) {
+                                    if (allRoles.isEmpty()) {
+                                        DropdownMenuItem(
+                                            text = { Text("No hay roles disponibles", color = Color.Gray) },
+                                            onClick = { }
+                                        )
+                                    } else {
+                                        allRoles.forEach { role ->
+                                            DropdownMenuItem(
+                                                text = { Text(role.name) },
+                                                onClick = {
+                                                    selectedRole = role.name
+                                                    selectedRoleId = role.id
+                                                    expandedRole = false
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     FormProgressIndicator(
@@ -170,6 +255,7 @@ fun AddAlumnoScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
+                    // Renderizar pasos del formulario
                     when (state.currentStep) {
                         StudentFormStep.PERSONAL_INFO -> {
                             if (state.errors.general != null) {
@@ -193,6 +279,7 @@ fun AddAlumnoScreen(
                             PersonalInfoStep(
                                 data = state.data,
                                 errors = state.errors,
+                                selectedFranchiseName = selectedFranchise,
                                 onDataChange = { state.updateData(it) }
                             )
                         }
@@ -216,6 +303,7 @@ fun AddAlumnoScreen(
 
                     Spacer(modifier = Modifier.weight(1f))
 
+                    // Botones de navegación
                     FormNavigationButtons(
                         currentStep = state.currentStep,
                         onCancel = onDismiss,
@@ -241,7 +329,7 @@ fun AddAlumnoScreen(
                             state.nextStep()
                         },
                         onSubmit = {
-                            // ✅ VALIDACIÓN 1: Verificar que se seleccionó una unidad
+                            // Validaciones antes de guardar
                             if (selectedFranchiseId == 0L) {
                                 state.errors = state.errors.copy(
                                     general = "Debes seleccionar una unidad antes de registrar."
@@ -249,7 +337,6 @@ fun AddAlumnoScreen(
                                 return@FormNavigationButtons
                             }
 
-                            // ✅ VALIDACIÓN 2: Verificar que se seleccionó un rol
                             if (selectedRoleId == null) {
                                 state.errors = state.errors.copy(
                                     general = "Debes seleccionar un rol antes de registrar."
@@ -305,11 +392,20 @@ fun AddAlumnoScreen(
                                         roleId = selectedRoleId ?: 0L,
                                         active = if (state.data.active) 1L else 0L
                                     )
+
+                                    println("✓ Alumno registrado exitosamente")
+                                    println("  - Usuario: ${state.data.username}")
+                                    println("  - Unidad: $selectedFranchise (ID: $selectedFranchiseId)")
+                                    println("  - Tipo: $studentType")
+                                    println("  - Rol: $selectedRole (ID: $selectedRoleId)")
+                                    println("  - CURP: $curp")
+
                                     onDismiss()
                                 } catch (e: Exception) {
                                     state.errors = state.errors.copy(
                                         general = "Error al guardar los datos: ${e.message}"
                                     )
+                                    println("✗ Error al registrar alumno: ${e.message}")
                                 }
                             } else {
                                 state.errors = state.errors.copy(

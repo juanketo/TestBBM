@@ -1,0 +1,58 @@
+package org.example.appbbmges.ui.usuarios.registation.administrativeform
+
+data class AdministrativeFormData(
+    val firstName: String = "",
+    val lastNamePaternal: String = "",
+    val lastNameMaternal: String = "",
+    val gender: String = "",
+    val birthDate: String = "",
+    val nationality: String = "Mexicana",
+    val taxId: String = "",
+    val nss: String = "",
+    val countryCode: String = "+52",
+    val phone: String = "",
+    val email: String = "",
+    val addressStreet: String = "",
+    val addressZip: String = "",
+    val emergencyContactName: String = "",
+    val emergencyContactPhone: String = "",
+    val salary: String = "",
+    val startDate: String = "",
+    val active: Boolean = true,
+    val username: String = "",
+    val password: String = "",
+    val avatarId: String = "avatar_01"
+)
+
+data class AdministrativeFormErrors(
+    val firstName: String? = null,
+    val lastNamePaternal: String? = null,
+    val lastNameMaternal: String? = null,
+    val birthDate: String? = null,
+    val taxId: String? = null,
+    val nss: String? = null,
+    val phone: String? = null,
+    val email: String? = null,
+    val addressStreet: String? = null,
+    val addressZip: String? = null,
+    val emergencyContactPhone: String? = null,
+    val salary: String? = null,
+    val startDate: String? = null,
+    val general: String? = null
+) {
+    val isValid: Boolean
+        get() = firstName == null && lastNamePaternal == null &&
+                lastNameMaternal == null && birthDate == null &&
+                taxId == null && nss == null && phone == null &&
+                email == null && addressStreet == null &&
+                addressZip == null && emergencyContactPhone == null &&
+                salary == null && startDate == null && general == null
+}
+
+enum class AdministrativeFormStep {
+    PERSONAL_INFO,
+    PROFESSIONAL_INFO,
+    ADDRESS_INFO,
+    ADDITIONAL_INFO,
+    CONFIRMATION
+}

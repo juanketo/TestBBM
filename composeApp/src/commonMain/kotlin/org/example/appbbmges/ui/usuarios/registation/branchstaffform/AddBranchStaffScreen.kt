@@ -34,8 +34,9 @@ fun AddBranchStaffScreen(
     val currentUserId = SessionManager.userId ?: 0L
     val currentUserFranchiseId = SessionManager.franchiseId ?: 0L
 
-    val canManageAllFranchises = permissionHelper?.can("FRANQUICIAS_VER") == true ||
-            repository.isSuperAdmin(currentUserId)
+    val isSuperAdmin = repository.isSuperAdmin(currentUserId)
+    val canManageAllFranchises = isSuperAdmin ||
+            permissionHelper?.can("FRANQUICIAS_VER") == true
 
     val availableFranchises = remember(canManageAllFranchises, currentUserFranchiseId) {
         if (canManageAllFranchises) {
@@ -46,6 +47,17 @@ fun AddBranchStaffScreen(
     }
 
     val allRoles = remember { repository.getAllRoles() }
+
+    val allStaffTypes = BranchStaffFormConstants.staffTypeOptions
+
+    val availableStaffTypes = remember(canManageAllFranchises) {
+        if (canManageAllFranchises) {
+            allStaffTypes
+        } else {
+
+            allStaffTypes.filter { it != "Franquiciatario" }
+        }
+    }
 
     var selectedFranchise by remember {
         mutableStateOf(
@@ -66,6 +78,8 @@ fun AddBranchStaffScreen(
             }
         )
     }
+
+    var selectedStaffType by remember { mutableStateOf("") }
 
     var selectedRole by remember { mutableStateOf("") }
     var selectedRoleId by remember { mutableStateOf<Long?>(null) }
@@ -131,14 +145,35 @@ fun AddBranchStaffScreen(
                         modifier = Modifier.padding(bottom = 4.dp)
                     )
 
+                    if (!canManageAllFranchises) {
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFE3F2FD)
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "⚠️ Solo puedes agregar personal subordinado a tu unidad",
+                                color = Color(0xFF1976D2),
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+
                         Box(modifier = Modifier.weight(1f)) {
                             if (canManageAllFranchises) {
+
                                 var expandedFranchise by remember { mutableStateOf(false) }
 
                                 ExposedDropdownMenuBox(
@@ -192,6 +227,49 @@ fun AddBranchStaffScreen(
                         }
 
                         Box(modifier = Modifier.weight(1f)) {
+                            var expandedStaffType by remember { mutableStateOf(false) }
+
+                            ExposedDropdownMenuBox(
+                                expanded = expandedStaffType,
+                                onExpandedChange = { expandedStaffType = it }
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedStaffType,
+                                    onValueChange = { },
+                                    readOnly = true,
+                                    label = { Text("Tipo de Personal") },
+                                    placeholder = { Text("Selecciona tipo") },
+                                    trailingIcon = {
+                                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedStaffType)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = AppColors.Primary,
+                                        unfocusedBorderColor = Color.Gray.copy(alpha = 0.5f)
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+
+                                ExposedDropdownMenu(
+                                    expanded = expandedStaffType,
+                                    onDismissRequest = { expandedStaffType = false }
+                                ) {
+                                    availableStaffTypes.forEach { staffType ->
+                                        DropdownMenuItem(
+                                            text = { Text(staffType) },
+                                            onClick = {
+                                                selectedStaffType = staffType
+                                                expandedStaffType = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Box(modifier = Modifier.weight(1f)) {
                             var expandedRole by remember { mutableStateOf(false) }
 
                             ExposedDropdownMenuBox(
@@ -221,15 +299,22 @@ fun AddBranchStaffScreen(
                                     expanded = expandedRole,
                                     onDismissRequest = { expandedRole = false }
                                 ) {
-                                    allRoles.forEach { role ->
+                                    if (allRoles.isEmpty()) {
                                         DropdownMenuItem(
-                                            text = { Text(role.name) },
-                                            onClick = {
-                                                selectedRole = role.name
-                                                selectedRoleId = role.id
-                                                expandedRole = false
-                                            }
+                                            text = { Text("No hay roles disponibles", color = Color.Gray) },
+                                            onClick = { }
                                         )
+                                    } else {
+                                        allRoles.forEach { role ->
+                                            DropdownMenuItem(
+                                                text = { Text(role.name) },
+                                                onClick = {
+                                                    selectedRole = role.name
+                                                    selectedRoleId = role.id
+                                                    expandedRole = false
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -304,6 +389,13 @@ fun AddBranchStaffScreen(
                                 return@FormNavigationButtons
                             }
 
+                            if (selectedStaffType.isEmpty()) {
+                                state.errors = state.errors.copy(
+                                    general = "Debes seleccionar un tipo de personal antes de registrar."
+                                )
+                                return@FormNavigationButtons
+                            }
+
                             if (selectedRoleId == null) {
                                 state.errors = state.errors.copy(
                                     general = "Debes seleccionar un rol antes de registrar."
@@ -348,8 +440,10 @@ fun AddBranchStaffScreen(
                                     println("✓ Personal de Sucursal registrado exitosamente")
                                     println("  - Usuario: ${state.data.username}")
                                     println("  - Franquicia: $selectedFranchise (ID: $selectedFranchiseId)")
-                                    println("  - Rol ID: $selectedRoleId")
+                                    println("  - Tipo de Personal: $selectedStaffType")
+                                    println("  - Rol: $selectedRole (ID: $selectedRoleId)")
                                     println("  - Avatar ID: ${state.data.avatarId}")
+                                    println("  - Registrado por: ${if (canManageAllFranchises) "Administrador" else "Franquiciatario"}")
 
                                     onDismiss()
                                 } catch (e: Exception) {

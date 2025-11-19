@@ -354,15 +354,48 @@ class Repository(private val database: AppDatabaseBaby) {
 
     // --- FranchiseEntity ---
     fun insertFranchise(
-        name: String, email: String?, phone: String?, basePrice: Double?, currency: String?,
-        addressStreet: String?, addressNumber: String?, addressNeighborhood: String?, addressZip: String?,
-        addressCity: String?, addressCountry: String?, taxName: String?, taxId: String?, zone: String?,
-        isNew: Long = 0, active: Long = 1
+        name: String,
+        email: String?,
+        phone: String?,
+        precioBaseId: Long?,
+        currency: String?,
+        addressStreet: String?,
+        addressNumber: String?,
+        addressNeighborhood: String?,
+        addressZip: String?,
+        addressCity: String?,
+        addressCountry: String?,
+        taxName: String?,
+        taxId: String?,
+        zone: String?,
+        isNew: Long = 0,
+        active: Long = 1
     ) {
         database.expensesDbQueries.franchiseCreate(
-            name, email, phone, basePrice, currency, addressStreet, addressNumber, addressNeighborhood,
-            addressZip, addressCity, addressCountry, taxName, taxId, zone, isNew, active
+            name, email, phone, precioBaseId, currency, addressStreet, addressNumber,
+            addressNeighborhood, addressZip, addressCity, addressCountry, taxName,
+            taxId, zone, isNew, active
         )
+    }
+
+    fun getFranchisesByPrecioBase(precioBaseId: Long): List<FranchiseEntity> {
+        return database.expensesDbQueries.franchisesByPrecioBase(precioBaseId).executeAsList()
+    }
+
+    fun countFranchisesByPrecioBase(precioBaseId: Long): Long {
+        return database.expensesDbQueries.countFranchisesByPrecioBase(precioBaseId).executeAsOne()
+    }
+
+    fun updateFranchisePrecioBase(franchiseId: Long, nuevoPrecioBaseId: Long) {
+        database.expensesDbQueries.updateFranchisePrecioBase(nuevoPrecioBaseId, franchiseId)
+    }
+
+    fun updateMultipleFranchisesPrecioBase(franchiseIds: List<Long>, nuevoPrecioBaseId: Long) {
+        database.expensesDbQueries.transaction {
+            franchiseIds.forEach { franchiseId ->
+                database.expensesDbQueries.updateFranchisePrecioBase(nuevoPrecioBaseId, franchiseId)
+            }
+        }
     }
 
     fun getAllFranchises(): List<FranchiseEntity> {
@@ -374,14 +407,28 @@ class Repository(private val database: AppDatabaseBaby) {
     }
 
     fun updateFranchise(
-        id: Long, name: String, email: String?, phone: String?, basePrice: Double?, currency: String?,
-        addressStreet: String?, addressNumber: String?, addressNeighborhood: String?, addressZip: String?,
-        addressCity: String?, addressCountry: String?, taxName: String?, taxId: String?, zone: String?,
-        isNew: Long, active: Long
+        id: Long,
+        name: String,
+        email: String?,
+        phone: String?,
+        precioBaseId: Long?,
+        currency: String?,
+        addressStreet: String?,
+        addressNumber: String?,
+        addressNeighborhood: String?,
+        addressZip: String?,
+        addressCity: String?,
+        addressCountry: String?,
+        taxName: String?,
+        taxId: String?,
+        zone: String?,
+        isNew: Long,
+        active: Long
     ) {
         database.expensesDbQueries.franchiseUpdate(
-            name, email, phone, basePrice, currency, addressStreet, addressNumber, addressNeighborhood,
-            addressZip, addressCity, addressCountry, taxName, taxId, zone, isNew, active, id
+            name, email, phone, precioBaseId, currency, addressStreet, addressNumber,
+            addressNeighborhood, addressZip, addressCity, addressCountry, taxName,
+            taxId, zone, isNew, active, id
         )
     }
 
@@ -1289,18 +1336,15 @@ class Repository(private val database: AppDatabaseBaby) {
         return database.expensesDbQueries.studentSelectByBirthMonth(month).executeAsList()
     }
 
-    // En Repository.kt, actualiza el método initializeData():
-
     fun initializeData() {
         val existingUsers = getUserCount()
         if (existingUsers == 0L) {
-            // Crear franquicia principal si no existe
             if (getFranchiseCount() == 0L) {
                 insertFranchise(
                     name = "Sede Principal",
                     email = null,
                     phone = null,
-                    basePrice = 0.0,
+                    precioBaseId = null,
                     currency = "MXN",
                     addressStreet = null,
                     addressNumber = null,

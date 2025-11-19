@@ -1,6 +1,7 @@
 package org.example.appbbmges.ui.settings.registationex.formularionewsucursales
 
 import androidx.compose.runtime.*
+import org.example.appbbmges.PrecioBaseEntity
 import org.example.appbbmges.data.Repository
 
 object SucursalConstants {
@@ -11,7 +12,6 @@ object SucursalConstants {
 
     const val DEFAULT_CURRENCY = "MXN"
     const val DEFAULT_COUNTRY = "México"
-    const val DEFAULT_BASE_PRICE = "1500.00"
 }
 
 @Composable
@@ -44,10 +44,11 @@ class SucursalFormManager(
     var expandedZonas by mutableStateOf(false)
         private set
 
-    private val preciosBase by lazy { repository.getAllPreciosBase() }
-    private val precioBaseDefault by lazy {
-        preciosBase.firstOrNull()?.precio?.toString() ?: SucursalConstants.DEFAULT_BASE_PRICE
-    }
+    var expandedPreciosBase by mutableStateOf(false)
+        private set
+
+    // CAMBIO: Cargar precios base disponibles
+    val preciosBase by lazy { repository.getAllPreciosBase() }
 
     fun updateFormData(update: SucursalFormData.() -> SucursalFormData) {
         formData = formData.update()
@@ -104,7 +105,7 @@ class SucursalFormManager(
     fun updateTaxId(taxId: String) {
         val formattedTaxId = taxId.uppercase().filter { char ->
             char.isLetterOrDigit() || char == '&'
-        }.take(13) // RFC máximo 13 caracteres
+        }.take(13)
         updateFormData { copy(taxId = formattedTaxId) }
     }
 
@@ -125,16 +126,33 @@ class SucursalFormManager(
         updateFormData { copy(active = active) }
     }
 
-    fun updateBasePrice(basePrice: String) {
-        updateFormData { copy(basePrice = basePrice) }
+    fun updatePrecioBase(precioBaseId: Long?) {
+        updateFormData { copy(precioBaseId = precioBaseId) }
     }
 
     fun updateExpandedZonas(expanded: Boolean) {
         expandedZonas = expanded
     }
 
-    fun getEffectiveBasePrice(): String {
-        return if (formData.basePrice.isEmpty()) precioBaseDefault else formData.basePrice
+    // NUEVO: Método para controlar el dropdown de precios
+    fun updateExpandedPreciosBase(expanded: Boolean) {
+        expandedPreciosBase = expanded
+    }
+
+    // CAMBIO: Obtener el precio base seleccionado
+    fun getSelectedPrecioBase(): PrecioBaseEntity? {
+        return formData.precioBaseId?.let { id ->
+            preciosBase.find { it.id == id }
+        }
+    }
+
+    // NUEVO: Verificar si hay un precio base válido
+    fun hasValidPrecioBase(): Boolean {
+        return formData.precioBaseId != null
+    }
+
+    fun updateBasePrice(precioBaseId: Long?) {
+        updateFormData { copy(precioBaseId = precioBaseId) }
     }
 
     private fun validateCurrentStep(): Boolean {
@@ -149,8 +167,9 @@ class SucursalFormManager(
                 result.isValid
             }
             SucursalFormStep.DETAIL_INFO -> {
+                // CAMBIO: Validar que se haya seleccionado un precio base
                 val result = SucursalValidator.validateDetailInfo(
-                    getEffectiveBasePrice(),
+                    formData.precioBaseId,
                     formData.currency
                 )
                 validationResult = result
@@ -216,13 +235,12 @@ class SucursalFormManager(
         formState = SucursalFormState.Loading
 
         try {
-            val effectiveBasePrice = getEffectiveBasePrice()
-
+            // CAMBIO: Enviar el ID del precio base en lugar del precio como Double
             repository.insertFranchise(
                 formData.name,
                 formData.email.ifEmpty { null },
                 formData.phone.ifEmpty { null },
-                effectiveBasePrice.toDoubleOrNull(),
+                formData.precioBaseId, // CAMBIO: Ahora enviamos el ID
                 formData.currency.ifEmpty { null },
                 formData.addressStreet.ifEmpty { null },
                 formData.addressNumber.ifEmpty { null },

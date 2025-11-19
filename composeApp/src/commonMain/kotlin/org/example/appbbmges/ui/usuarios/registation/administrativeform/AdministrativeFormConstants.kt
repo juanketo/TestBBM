@@ -1,6 +1,6 @@
-package org.example.appbbmges.ui.usuarios.registation.studentsform
+package org.example.appbbmges.ui.usuarios.registation.administrativeform
 
-object FormConstants {
+object AdministrativeFormConstants {
     val genderOptions = listOf("Masculino", "Femenino")
 
     val nationalityOptions = listOf(
@@ -25,5 +25,19 @@ object FormConstants {
         "+58" to "Venezuela"
     )
 
-    const val STUDENT_TYPE = "Alumno"
+    // Áreas Corporativas (para el dropdown)
+    val corporateAreaOptions = listOf(
+        "Recursos Humanos",
+        "Finanzas",
+        "Marketing",
+        "Sistemas",
+        "Dirección General",
+        "Diseño",
+        "Académico",
+        "Subdirección"
+    )
+
+    // Sede Principal (fija)
+    const val SEDE_PRINCIPAL_ID = 1L
+    const val SEDE_PRINCIPAL_NAME = "Sede Principal"
 }

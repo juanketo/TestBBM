@@ -24,4 +24,11 @@ object BranchStaffFormConstants {
         "+56" to "Chile",
         "+58" to "Venezuela"
     )
+
+    val staffTypeOptions = listOf(
+        "Franquiciatario",
+        "Coordinador Académico",
+        "Profesores",
+        "Atención a clientes"
+    )
 }
