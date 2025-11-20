@@ -63,8 +63,11 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
     val currentUserId = SessionManager.userId ?: 0L
     val currentUserFranchiseId = SessionManager.franchiseId ?: 0L
 
-    val canViewAllFranchises = permissionHelper?.can("FRANQUICIAS_VER") == true ||
-            repository.isSuperAdmin(currentUserId)
+    // NUEVO: Determinar permisos específicos
+    val isSuperAdmin = repository.isSuperAdmin(currentUserId)
+    val canViewAllFranchises = permissionHelper?.can("FRANQUICIAS_VER") == true || isSuperAdmin
+    val canAddAdministrative = isSuperAdmin || (permissionHelper?.can("ADMINISTRATIVOS_CREAR") == true)
+    val canViewProfessors = isSuperAdmin || (permissionHelper?.can("PROFESORES_VER") == true)
 
     val students = remember { mutableStateOf(
         if (canViewAllFranchises) {
@@ -130,17 +133,49 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
         }
     }
 
+    // NUEVO: Tabs disponibles según permisos
+    val availableTabs = buildList {
+        add("Todos")
+        add("Alumnos")
+        if (canViewProfessors) {
+            add("Profesores")
+        }
+        add("Personal Sucursal")
+        if (canAddAdministrative) {
+            add("Administrativos")
+        }
+    }
+
+    // Asegurar que selectedTab sea válido
+    LaunchedEffect(availableTabs) {
+        if (!availableTabs.contains(selectedTab)) {
+            selectedTab = "Todos"
+        }
+    }
+
     val filteredUsers: List<Pair<Any, String>> = when (selectedTab) {
         "Todos" -> mutableListOf<Pair<Any, String>>().apply {
             addAll(students.value.map { it to "Alumno" })
-            addAll(teachers.value.map { it to "Profesor" })
+            if (canViewProfessors) {
+                addAll(teachers.value.map { it to "Profesor" })
+            }
             addAll(franchisees.value.map { it to "Personal Sucursal" })
-            addAll(administratives.value.map { it to "Administrativo" })
+            if (canAddAdministrative) {
+                addAll(administratives.value.map { it to "Administrativo" })
+            }
         }
         "Alumnos" -> students.value.map { it to "Alumno" }
-        "Profesores" -> teachers.value.map { it to "Profesor" }
+        "Profesores" -> if (canViewProfessors) {
+            teachers.value.map { it to "Profesor" }
+        } else {
+            emptyList()
+        }
         "Personal Sucursal" -> franchisees.value.map { it to "Personal Sucursal" }
-        "Administrativos" -> administratives.value.map { it to "Administrativo" }
+        "Administrativos" -> if (canAddAdministrative) {
+            administratives.value.map { it to "Administrativo" }
+        } else {
+            emptyList()
+        }
         else -> emptyList()
     }.filter { userPair ->
         val (user, _) = userPair
@@ -200,11 +235,30 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                     onDismissRequest = { expandedAdd = false },
                     modifier = Modifier.align(Alignment.BottomEnd)
                 ) {
-                    listOf("Alumno", "Personal Sucursal", "Administrativo").forEach { userType ->
+                    // Siempre mostrar Alumno
+                    DropdownMenuItem(
+                        text = { Text("Agregar Alumno") },
+                        onClick = {
+                            selectedUserType = "Alumno"
+                            expandedAdd = false
+                        }
+                    )
+
+                    // Siempre mostrar Personal Sucursal
+                    DropdownMenuItem(
+                        text = { Text("Agregar Personal Sucursal") },
+                        onClick = {
+                            selectedUserType = "Personal Sucursal"
+                            expandedAdd = false
+                        }
+                    )
+
+                    // SOLO mostrar Administrativo si tiene permisos
+                    if (canAddAdministrative) {
                         DropdownMenuItem(
-                            text = { Text("Agregar $userType") },
+                            text = { Text("Agregar Administrativo") },
                             onClick = {
-                                selectedUserType = userType
+                                selectedUserType = "Administrativo"
                                 expandedAdd = false
                             }
                         )
@@ -332,18 +386,11 @@ fun UsuariosScreen(navController: SimpleNavController, repository: Repository) {
                         Spacer(modifier = Modifier.height(16.dp))
 
                         TabRow(
-                            selectedTabIndex = when (selectedTab) {
-                                "Todos" -> 0
-                                "Alumnos" -> 1
-                                "Profesores" -> 2
-                                "Personal Sucursal" -> 3
-                                "Administrativos" -> 4
-                                else -> 0
-                            },
+                            selectedTabIndex = availableTabs.indexOf(selectedTab).coerceAtLeast(0),
                             containerColor = Color.White,
                             contentColor = AppColors.Primary
                         ) {
-                            listOf("Todos", "Alumnos", "Profesores", "Personal Sucursal", "Administrativos").forEach { tab ->
+                            availableTabs.forEach { tab ->
                                 Tab(
                                     text = { Text(tab) },
                                     selected = selectedTab == tab,

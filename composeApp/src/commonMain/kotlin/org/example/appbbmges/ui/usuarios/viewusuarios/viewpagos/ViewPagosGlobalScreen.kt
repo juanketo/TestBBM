@@ -44,10 +44,15 @@ fun ViewPagosGlobalScreen(
     val paymentRepository = remember { DatabasePaymentRepository(repository) }
     val paymentCalculator = remember { PaymentCalculator(paymentRepository) }
 
+    // NUEVO: Obtener datos del estudiante y sucursal
+    val student = remember { repository.getStudentById(studentId) }
+    val franchise = remember { student?.let { repository.getFranchiseById(it.franchise_id) } }
+    val precioBaseIdActual = franchise?.precio_base_id ?: 1L
+
     // Obtener el precio actual de inscripción
     val currentInscriptionPrice = remember {
         val inscriptions = repository.getAllInscriptions()
-        inscriptions.lastOrNull()?.precio ?: 800.00 // Valor por defecto si no hay inscripciones
+        inscriptions.lastOrNull()?.precio ?: 800.00
     }
 
     var selectedType by remember { mutableStateOf<PaymentSelection?>(null) }
@@ -59,9 +64,10 @@ fun ViewPagosGlobalScreen(
     var errorMessage by remember { mutableStateOf("") }
     var selectedPaymentMethod by remember { mutableStateOf("Efectivo") }
 
-    val availableMemberships by produceState(emptyList()) {
+    // CAMBIO: Pasar precioBaseIdActual
+    val availableMemberships by produceState(emptyList(), precioBaseIdActual) {
         value = try {
-            paymentCalculator.getAvailableMemberships()
+            paymentCalculator.getAvailableMemberships(precioBaseIdActual)
         } catch (_: Exception) {
             emptyList()
         }
@@ -73,6 +79,7 @@ fun ViewPagosGlobalScreen(
         }
     }
 
+    // CAMBIO: Usar precioBaseIdActual en el cálculo
     LaunchedEffect(selectedType, numClasses, selectedMembershipId, includeEnrollment, selectedPaymentMethod) {
         paymentResult = null
         showError = false
@@ -91,6 +98,8 @@ fun ViewPagosGlobalScreen(
             try {
                 paymentResult = paymentCalculator.calculatePayment(
                     selection = selection,
+                    precioBaseId = precioBaseIdActual,  // ← CAMBIO
+                    inscriptionId = 1L,
                     includeEnrollment = includeEnrollment,
                     timing = PaymentTiming.NORMAL,
                     paymentMethod = selectedPaymentMethod
@@ -134,13 +143,24 @@ fun ViewPagosGlobalScreen(
                                 .padding(vertical = 20.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "RESUMEN DEL PAGO",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = AppColors.Primary,
-                                textAlign = TextAlign.Center
-                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "RESUMEN DEL PAGO",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AppColors.Primary,
+                                    textAlign = TextAlign.Center
+                                )
+                                // NUEVO: Mostrar sucursal
+                                franchise?.let {
+                                    Text(
+                                        text = it.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = AppColors.Primary.copy(alpha = 0.7f),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -221,6 +241,11 @@ fun ViewPagosGlobalScreen(
                             paymentResult?.let { result ->
                                 if (!showError) {
                                     try {
+                                        // NUEVO: Obtener el precio base usado
+                                        val precioBaseUsado = franchise?.precio_base_id?.let { pbId ->
+                                            repository.getPrecioBaseById(pbId)?.precio
+                                        }
+
                                         repository.insertPayment(
                                             studentId = studentId,
                                             amount = result.finalAmount,
@@ -233,7 +258,8 @@ fun ViewPagosGlobalScreen(
                                             } else {
                                                 "$numClasses discipline(s)"
                                             },
-                                            inscriptionId = if (includeEnrollment) 1L else null
+                                            inscriptionId = if (includeEnrollment) 1L else null,
+                                            precioBaseUsado = precioBaseUsado  // ← NUEVO
                                         )
                                         onDismiss()
                                     } catch (e: Exception) {

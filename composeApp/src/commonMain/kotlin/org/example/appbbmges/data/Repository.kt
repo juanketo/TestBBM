@@ -1202,10 +1202,12 @@ class Repository(private val database: AppDatabaseBaby) {
         baseAmount: Double,
         discount: Double,
         membershipInfo: String?,
-        inscriptionId: Long?
+        inscriptionId: Long?,
+        precioBaseUsado: Double? = null
     ) {
         database.expensesDbQueries.insertPayment(
-            studentId, amount, description, paymentDate, baseAmount, discount, membershipInfo, inscriptionId
+            studentId, amount, description, paymentDate, baseAmount, discount, membershipInfo, inscriptionId,
+            precioBaseUsado
         )
     }
 
@@ -1231,10 +1233,11 @@ class Repository(private val database: AppDatabaseBaby) {
         baseAmount: Double,
         discount: Double,
         membershipInfo: String?,
-        inscriptionId: Long?
+        inscriptionId: Long?,
+        precioBaseUsado: Double? = null
     ) {
         database.expensesDbQueries.updatePayment(
-            studentId, amount, description, paymentDate, baseAmount, discount, membershipInfo, inscriptionId, id
+            studentId, amount, description, paymentDate, baseAmount, discount, membershipInfo, inscriptionId, precioBaseUsado, id
         )
     }
 
@@ -1374,6 +1377,13 @@ class Repository(private val database: AppDatabaseBaby) {
     fun isSuperAdmin(userId: Long): Boolean {
         val user = getUserById(userId)
         return user?.username == "Adminpresi12"
+    }
+
+    fun Repository.getPrecioBaseForStudent(studentId: Long): Double? {
+        val student = getStudentById(studentId) ?: return null
+        val franchise = getFranchiseById(student.franchise_id) ?: return null
+        val precioBaseId = franchise.precio_base_id ?: return null
+        return getPrecioBaseById(precioBaseId)?.precio
     }
 
 }

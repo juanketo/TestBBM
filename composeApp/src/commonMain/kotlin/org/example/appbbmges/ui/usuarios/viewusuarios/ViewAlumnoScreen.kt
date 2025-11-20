@@ -700,6 +700,7 @@ private fun StudentPersonalSection(
         FormSection(
             title = "INFORMACIÓN PERSONAL",
             content = {
+                // CAMBIO: Un solo FormGrid con los dos apellidos
                 FormGrid {
                     EditableFormField(
                         label = "Nombre",
@@ -708,15 +709,13 @@ private fun StudentPersonalSection(
                         enabled = isEditing,
                         modifier = Modifier.weight(1f)
                     )
-                    FormGrid {
-                        EditableFormField(
-                            label = "Apellido Paterno",
-                            value = lastNamePaternal,
-                            onValueChange = onLastNamePaternalChange,
-                            enabled = isEditing,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+                    EditableFormField(
+                        label = "Apellido Paterno",
+                        value = lastNamePaternal,
+                        onValueChange = onLastNamePaternalChange,
+                        enabled = isEditing,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
                 FormGrid {

@@ -1141,16 +1141,15 @@ CREATE TABLE PaymentEntity (
     discount REAL NOT NULL,
     membership_info TEXT,
     inscription_id INTEGER,
+    precio_base_usado REAL,
     FOREIGN KEY(student_id) REFERENCES StudentEntity(id),
     FOREIGN KEY(inscription_id) REFERENCES InscriptionEntity(id)
 );
 
-
-
 -- Consultas para PaymentEntity
 insertPayment:
-INSERT INTO PaymentEntity (student_id, amount, description, payment_date, base_amount, discount, membership_info, inscription_id)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO PaymentEntity (student_id, amount, description, payment_date, base_amount, discount, membership_info, inscription_id, precio_base_usado)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 getPaymentsByStudentId:
 SELECT * FROM PaymentEntity
@@ -1166,7 +1165,7 @@ WHERE id = ?;
 
 updatePayment:
 UPDATE PaymentEntity
-SET student_id = ?, amount = ?, description = ?, payment_date = ?, base_amount = ?, discount = ?, membership_info = ?, inscription_id = ?
+SET student_id = ?, amount = ?, description = ?, payment_date = ?, base_amount = ?, discount = ?, membership_info = ?, inscription_id = ?, precio_base_usado = ?
 WHERE id = ?;
 
 deletePayment:
